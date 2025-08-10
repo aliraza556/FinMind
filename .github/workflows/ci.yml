@@ -41,7 +41,7 @@ jobs:
         env:
           REDIS_URL: redis://localhost:6379/0
         working-directory: packages/backend
-        run: pytest -q
+        run: python -m pytest -q
 
       - name: Security Scan (Bandit)
         working-directory: packages/backend

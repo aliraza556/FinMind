@@ -1,7 +1,6 @@
 from datetime import datetime, date
 from enum import Enum
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func, Enum as SAEnum
+from sqlalchemy import Enum as SAEnum
 from .extensions import db
 
 
@@ -92,7 +91,9 @@ class UserSubscription(db.Model):
     __tablename__ = "user_subscriptions"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    plan_id = db.Column(db.Integer, db.ForeignKey("subscription_plans.id"), nullable=False)
+    plan_id = db.Column(
+        db.Integer, db.ForeignKey("subscription_plans.id"), nullable=False
+    )
     active = db.Column(db.Boolean, default=False, nullable=False)
     started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

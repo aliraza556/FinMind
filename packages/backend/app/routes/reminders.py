@@ -14,18 +14,25 @@ logger = logging.getLogger("finmind.reminders")
 @jwt_required()
 def list_reminders():
     uid = int(get_jwt_identity())
-    items = db.session.query(Reminder).filter_by(user_id=uid).order_by(Reminder.send_at).all()
+    items = (
+        db.session.query(Reminder)
+        .filter_by(user_id=uid)
+        .order_by(Reminder.send_at)
+        .all()
+    )
     logger.info("List reminders user=%s count=%s", uid, len(items))
-    return jsonify([
-        {
-            "id": r.id,
-            "message": r.message,
-            "send_at": r.send_at.isoformat(),
-            "sent": r.sent,
-            "channel": r.channel,
-        }
-        for r in items
-    ])
+    return jsonify(
+        [
+            {
+                "id": r.id,
+                "message": r.message,
+                "send_at": r.send_at.isoformat(),
+                "sent": r.sent,
+                "channel": r.channel,
+            }
+            for r in items
+        ]
+    )
 
 
 @bp.post("")
@@ -52,7 +59,11 @@ def run_due():
     now = datetime.utcnow() + timedelta(minutes=1)
     items = (
         db.session.query(Reminder)
-        .filter(Reminder.user_id == uid, Reminder.sent == False, Reminder.send_at <= now)
+        .filter(
+            Reminder.user_id == uid,
+            Reminder.sent.is_(False),
+            Reminder.send_at <= now,
+        )
         .all()
     )
     for r in items:

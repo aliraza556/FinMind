@@ -1,5 +1,3 @@
-from datetime import date
-from collections import defaultdict
 from sqlalchemy import extract, func
 from ..extensions import db
 from ..models import Expense
@@ -18,7 +16,11 @@ def _heuristic_budget(uid: int, ym: str):
     year, month = map(int, ym.split("-"))
     total = (
         db.session.query(func.coalesce(func.sum(Expense.amount), 0))
-        .filter(Expense.user_id == uid, extract("year", Expense.spent_at) == year, extract("month", Expense.spent_at) == month)
+        .filter(
+            Expense.user_id == uid,
+            extract("year", Expense.spent_at) == year,
+            extract("month", Expense.spent_at) == month,
+        )
         .scalar()
     )
     # Suggest 90% of last spend with 50/30/20 breakdown
@@ -42,14 +44,21 @@ def monthly_budget_suggestion(uid: int, ym: str):
             year, month = map(int, ym.split("-"))
             rows = (
                 db.session.query(Expense.category_id, func.sum(Expense.amount))
-                .filter(Expense.user_id == uid, extract("year", Expense.spent_at) == year, extract("month", Expense.spent_at) == month)
+                .filter(
+                    Expense.user_id == uid,
+                    extract("year", Expense.spent_at) == year,
+                    extract("month", Expense.spent_at) == month,
+                )
                 .group_by(Expense.category_id)
                 .all()
             )
             categories = {str(k or "uncat"): float(v) for k, v in rows}
             prompt = (
-                "Given the following monthly spend by category, suggest a reasonable budget for next month using the 50/30/20 rule as a baseline and add 2 actionable tips.\n"
-                f"Data: {categories}\nReturn JSON with fields: suggested_total, breakdown(needs,wants,savings), tips(list)."
+                "Given the following monthly spend by category, suggest a "
+                "reasonable budget for next month using the 50/30/20 rule as a "
+                "baseline and add 2 actionable tips.\n"
+                f"Data: {categories}\nReturn JSON with fields: suggested_total, "
+                "breakdown(needs,wants,savings), tips(list)."
             )
             # Use Responses API for determinism
             resp = client.chat.completions.create(

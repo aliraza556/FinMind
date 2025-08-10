@@ -2,7 +2,7 @@ from datetime import date
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
-from ..models import Expense, Category
+from ..models import Expense
 from ..services.cache import cache_delete_patterns, monthly_summary_key
 import logging
 
@@ -47,14 +47,20 @@ def create_expense():
         currency=data.get("currency", "USD"),
         category_id=data.get("category_id"),
         notes=data.get("notes"),
-        spent_at=date.fromisoformat(data.get("spent_at")) if data.get("spent_at") else date.today(),
+        spent_at=(
+            date.fromisoformat(data.get("spent_at"))
+            if data.get("spent_at")
+            else date.today()
+        ),
     )
     db.session.add(e)
     db.session.commit()
     logger.info("Created expense id=%s user=%s amount=%s", e.id, uid, e.amount)
     # Invalidate caches
-    cache_delete_patterns([
-        monthly_summary_key(uid, e.spent_at.strftime("%Y-%m")),
-        f"insights:{uid}:*",
-    ])
+    cache_delete_patterns(
+        [
+            monthly_summary_key(uid, e.spent_at.strftime("%Y-%m")),
+            f"insights:{uid}:*",
+        ]
+    )
     return jsonify(id=e.id), 201

@@ -14,21 +14,28 @@ logger = logging.getLogger("finmind.bills")
 @jwt_required()
 def list_bills():
     uid = int(get_jwt_identity())
-    items = db.session.query(Bill).filter_by(user_id=uid, active=True).order_by(Bill.next_due_date).all()
+    items = (
+        db.session.query(Bill)
+        .filter_by(user_id=uid, active=True)
+        .order_by(Bill.next_due_date)
+        .all()
+    )
     logger.info("List bills user=%s count=%s", uid, len(items))
-    return jsonify([
-        {
-            "id": b.id,
-            "name": b.name,
-            "amount": float(b.amount),
-            "currency": b.currency,
-            "next_due_date": b.next_due_date.isoformat(),
-            "cadence": b.cadence.value,
-            "channel_whatsapp": b.channel_whatsapp,
-            "channel_email": b.channel_email,
-        }
-        for b in items
-    ])
+    return jsonify(
+        [
+            {
+                "id": b.id,
+                "name": b.name,
+                "amount": float(b.amount),
+                "currency": b.currency,
+                "next_due_date": b.next_due_date.isoformat(),
+                "cadence": b.cadence.value,
+                "channel_whatsapp": b.channel_whatsapp,
+                "channel_email": b.channel_email,
+            }
+            for b in items
+        ]
+    )
 
 
 @bp.post("")
@@ -71,5 +78,7 @@ def mark_paid(bill_id: int):
         b.active = False
     db.session.commit()
     cache_delete_patterns([f"user:{uid}:upcoming_bills*"])
-    logger.info("Marked bill paid id=%s user=%s next_due_date=%s", b.id, uid, b.next_due_date)
+    logger.info(
+        "Marked bill paid id=%s user=%s next_due_date=%s", b.id, uid, b.next_due_date
+    )
     return jsonify(message="updated")

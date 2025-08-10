@@ -1,5 +1,6 @@
 from datetime import date
 
+
 def test_bills_crud_and_mark_paid(client, auth_header):
     # Initially empty
     r = client.get("/bills", headers=auth_header)

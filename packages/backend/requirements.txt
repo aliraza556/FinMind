@@ -13,3 +13,7 @@ requests==2.32.3
 openai==1.37.1
 twilio==9.3.2
 pytest==8.2.2
+black==24.8.0
+flake8==7.0.0
+bandit==1.7.9
+

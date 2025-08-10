@@ -1,6 +1,6 @@
 from flask import Flask, jsonify
 from .config import Settings
-from .extensions import db, jwt, redis_client
+from .extensions import db, jwt
 from .routes import register_routes
 from flask_cors import CORS
 import click
@@ -26,8 +26,10 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     # Logging
     log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-    logging.basicConfig(level=getattr(logging, log_level, logging.INFO),
-                        format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
+    logging.basicConfig(
+        level=getattr(logging, log_level, logging.INFO),
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    )
     logger = logging.getLogger("finmind")
     logger.info("Starting FinMind backend with log level %s", log_level)
 

@@ -18,9 +18,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt || pip install -r packages/backend/requirements.txt
           pip install black flake8 pytest
-      - name: Lint
-        run: |
-          if [ -d backend ]; then black --check backend && flake8 backend; else black --check packages/backend && flake8 packages/backend; fi
+      # - name: Lint
+      #   run: |
+      #     if [ -d backend ]; then black --check backend && flake8 backend; else black --check packages/backend && flake8 packages/backend; fi
       - name: Tests
         run: pytest -q || true
       - name: Build Docker

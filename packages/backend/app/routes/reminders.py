@@ -4,8 +4,10 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models import Reminder
 from ..services.reminders import send_reminder
+import logging
 
 bp = Blueprint("reminders", __name__)
+logger = logging.getLogger("finmind.reminders")
 
 
 @bp.get("")
@@ -13,6 +15,7 @@ bp = Blueprint("reminders", __name__)
 def list_reminders():
     uid = int(get_jwt_identity())
     items = db.session.query(Reminder).filter_by(user_id=uid).order_by(Reminder.send_at).all()
+    logger.info("List reminders user=%s count=%s", uid, len(items))
     return jsonify([
         {
             "id": r.id,
@@ -38,6 +41,7 @@ def create_reminder():
     )
     db.session.add(r)
     db.session.commit()
+    logger.info("Created reminder id=%s user=%s", r.id, uid)
     return jsonify(id=r.id), 201
 
 
@@ -55,4 +59,5 @@ def run_due():
         send_reminder(r)
         r.sent = True
     db.session.commit()
+    logger.info("Processed due reminders user=%s count=%s", uid, len(items))
     return jsonify(processed=len(items))

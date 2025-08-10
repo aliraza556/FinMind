@@ -4,8 +4,10 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models import Expense, Category
 from ..services.cache import cache_delete_patterns, monthly_summary_key
+import logging
 
 bp = Blueprint("expenses", __name__)
+logger = logging.getLogger("finmind.expenses")
 
 
 @bp.get("")
@@ -19,6 +21,7 @@ def list_expenses():
         .limit(200)
         .all()
     )
+    logger.info("List expenses user=%s count=%s", uid, len(items))
     data = [
         {
             "id": e.id,
@@ -48,6 +51,7 @@ def create_expense():
     )
     db.session.add(e)
     db.session.commit()
+    logger.info("Created expense id=%s user=%s amount=%s", e.id, uid, e.amount)
     # Invalidate caches
     cache_delete_patterns([
         monthly_summary_key(uid, e.spent_at.strftime("%Y-%m")),

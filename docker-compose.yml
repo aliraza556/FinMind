@@ -21,7 +21,7 @@ services:
     volumes:
       - ./packages/backend/app:/app/app
       - ./packages/backend/wsgi.py:/app/wsgi.py
-      - ./packages/backend/tests:/app/tests:ro
+      - ./packages/backend/tests:/app/tests
     command: gunicorn --reload --workers=2 --threads=4 --bind 0.0.0.0:8000 wsgi:app
 
   frontend:

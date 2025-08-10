@@ -21,7 +21,9 @@ def test_categories_crud_flow(client, auth_header):
     assert len(items) == 1
 
     # Update
-    r = client.patch(f"/categories/{c1['id']}", json={"name": "Groceries"}, headers=auth_header)
+    r = client.patch(
+        f"/categories/{c1['id']}", json={"name": "Groceries"}, headers=auth_header
+    )
     assert r.status_code == 200
     updated = r.get_json()
     assert updated["name"] == "Groceries"

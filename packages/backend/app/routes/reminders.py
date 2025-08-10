@@ -60,7 +60,9 @@ def run_due():
     items = (
         db.session.query(Reminder)
         .filter(
-            Reminder.user_id == uid, Reminder.sent == False, Reminder.send_at <= now
+            Reminder.user_id == uid,
+            Reminder.sent.is_(False),
+            Reminder.send_at <= now,
         )
         .all()
     )

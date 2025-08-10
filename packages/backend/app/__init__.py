@@ -1,6 +1,6 @@
 from flask import Flask, jsonify
 from .config import Settings
-from .extensions import db, jwt, redis_client
+from .extensions import db, jwt
 from .routes import register_routes
 from flask_cors import CORS
 import click

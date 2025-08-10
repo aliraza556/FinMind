@@ -2,7 +2,7 @@ from datetime import date
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
-from ..models import Expense, Category
+from ..models import Expense
 from ..services.cache import cache_delete_patterns, monthly_summary_key
 import logging
 

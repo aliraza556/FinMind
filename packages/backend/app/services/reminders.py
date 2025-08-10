@@ -62,7 +62,12 @@ def send_reminder(r: Reminder):
         to = r.channel.split(":", 1)[1]
         return send_whatsapp(to, r.message)
     else:
-        # Fallback: assume email stored in channel as email or pull from user profile later
-        to = r.channel if "@" in r.channel else _settings.email_from or ""
+        # Fallback: assume email stored in channel as email
+        # or pull from user profile later
+        to = (
+            r.channel
+            if "@" in r.channel
+            else (_settings.email_from or "")
+        )
         subject = "Bill Reminder"
         return send_email(to, subject, r.message)

@@ -1,7 +1,6 @@
 from datetime import datetime, date
 from enum import Enum
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func, Enum as SAEnum
+from sqlalchemy import Enum as SAEnum
 from .extensions import db
 
 

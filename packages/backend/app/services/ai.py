@@ -1,5 +1,3 @@
-from datetime import date
-from collections import defaultdict
 from sqlalchemy import extract, func
 from ..extensions import db
 from ..models import Expense
@@ -56,8 +54,11 @@ def monthly_budget_suggestion(uid: int, ym: str):
             )
             categories = {str(k or "uncat"): float(v) for k, v in rows}
             prompt = (
-                "Given the following monthly spend by category, suggest a reasonable budget for next month using the 50/30/20 rule as a baseline and add 2 actionable tips.\n"
-                f"Data: {categories}\nReturn JSON with fields: suggested_total, breakdown(needs,wants,savings), tips(list)."
+                "Given the following monthly spend by category, suggest a "
+                "reasonable budget for next month using the 50/30/20 rule as a "
+                "baseline and add 2 actionable tips.\n"
+                f"Data: {categories}\nReturn JSON with fields: suggested_total, "
+                "breakdown(needs,wants,savings), tips(list)."
             )
             # Use Responses API for determinism
             resp = client.chat.completions.create(

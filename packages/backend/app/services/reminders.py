@@ -64,10 +64,6 @@ def send_reminder(r: Reminder):
     else:
         # Fallback: assume email stored in channel as email
         # or pull from user profile later
-        to = (
-            r.channel
-            if "@" in r.channel
-            else (_settings.email_from or "")
-        )
+        to = r.channel if "@" in r.channel else (_settings.email_from or "")
         subject = "Bill Reminder"
         return send_email(to, subject, r.message)

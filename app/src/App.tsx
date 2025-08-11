@@ -1,14 +1,49 @@
-import { Outlet } from 'react-router-dom'
-import Navbar from './components/Navbar'
-import './App.css'
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Layout } from "./components/layout/Layout";
+import { Dashboard } from "./pages/Dashboard";
+import { Budgets } from "./pages/Budgets";
+import { Bills } from "./pages/Bills";
+import { Analytics } from "./pages/Analytics";
+import { SignIn } from "./pages/SignIn";
+import { Register } from "./pages/Register";
+import NotFound from "./pages/NotFound";
+import { Landing } from "./pages/Landing";
 
-export default function App() {
-  return (
-    <div className="app-shell">
-      <Navbar />
-      <main className="container">
-        <Outlet />
-      </main>
-    </div>
-  )
-}
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+    },
+  },
+});
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Landing />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="budgets" element={<Budgets />} />
+            <Route path="bills" element={<Bills />} />
+            <Route path="analytics" element={<Analytics />} />
+          </Route>
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/register" element={<Register />} />
+          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;

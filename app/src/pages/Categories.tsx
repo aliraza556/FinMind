@@ -3,6 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import type { Category } from '../api/categories';
 import { listCategories, createCategory, updateCategory, deleteCategory } from '../api/categories';
 import { getToken } from '../lib/auth';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dailog';
 
 export default function Categories() {
   const nav = useNavigate();
@@ -69,7 +80,6 @@ export default function Categories() {
   }
 
   async function onDelete(id: number) {
-    if (!confirm('Delete this category?')) return;
     setSaving(true);
     try {
       await deleteCategory(id);
@@ -128,9 +138,23 @@ export default function Categories() {
                     <button className="btn secondary" onClick={() => { setEditingId(c.id); setEditName(c.name); }}>
                       Edit
                     </button>
-                    <button className="btn secondary" onClick={() => onDelete(c.id)}>
-                      Delete
-                    </button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className="btn secondary">Delete</button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete category?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the category "{c.name}".
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => onDelete(c.id)}>Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </>
               )}

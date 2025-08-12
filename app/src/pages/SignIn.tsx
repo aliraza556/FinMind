@@ -17,8 +17,10 @@ import {
   Zap,
   Users
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
+import { login } from '@/api/auth';
+import { setToken, setRefreshToken } from '@/lib/auth';
 
 const socialProviders = [
   { name: 'Google', icon: Chrome, description: 'Sign in with Google' },
@@ -34,6 +36,13 @@ const features = [
 
 export function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const nav = useNavigate();
+  const location = useLocation() as any;
+  const from = location.state?.from?.pathname || '/dashboard';
 
   return (
     <div className="min-h-screen flex">
@@ -100,7 +109,24 @@ export function SignIn() {
           {/* Form */}
           <FinancialCard variant="financial" className="border-2">
             <FinancialCardContent className="p-6">
-              <form className="space-y-6">
+              <form
+                className="space-y-6"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setError(null);
+                  setLoading(true);
+                  try {
+                    const res = await login(email.trim(), password);
+                    setToken(res.access_token);
+                    if (res.refresh_token) setRefreshToken(res.refresh_token);
+                    nav(from, { replace: true });
+                  } catch (err: any) {
+                    setError(err?.message || 'Sign in failed');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium">
                     Email address
@@ -110,8 +136,11 @@ export function SignIn() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="Enter your email"
+                      placeholder="you@example.com"
                       className="pl-10 h-12"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
                     />
                   </div>
                 </div>
@@ -151,8 +180,14 @@ export function SignIn() {
                   </Link>
                 </div>
 
-                <Button className="w-full h-12 group" size="lg">
-                  Sign in to your account
+                {error && (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                    {error}
+                  </div>
+                )}
+
+                <Button className="w-full h-12 group" size="lg" type="submit" disabled={loading}>
+                  {loading ? 'Signing in…' : 'Sign in to your account'}
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </form>

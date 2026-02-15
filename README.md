@@ -162,6 +162,9 @@ finmind/
 - Backend: pytest, flake8, black. Frontend: vitest, eslint.
 - GitHub Actions `ci.yml` runs lint, tests, and builds both apps; optional docker build.
 
+## Contribution Policy
+- See `CONTRIBUTING.md` for fork-first contribution flow and PR requirements.
+
 ## Notes on Free-Tier Reminders
 - Primary: schedule via APScheduler in-process with persistence in Postgres (job table) and a simple daily trigger. Alternatively, use Railway/Render cron to hit `/reminders/run`.
 - Twilio WhatsApp free trial supports sandbox; email via SMTP (e.g., SendGrid free tier).

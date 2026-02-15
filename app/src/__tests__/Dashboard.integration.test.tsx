@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Dashboard } from '@/pages/Dashboard';
@@ -53,6 +53,14 @@ describe('Dashboard integration', () => {
           channel_whatsapp: false,
         },
       ],
+      category_breakdown: [
+        {
+          category_id: 1,
+          category_name: 'Food',
+          amount: 500,
+          share_pct: 100,
+        },
+      ],
       errors: [],
     });
 
@@ -68,6 +76,7 @@ describe('Dashboard integration', () => {
     expect(screen.getByText(/financial dashboard/i)).toBeInTheDocument();
     expect(screen.getByText(/salary/i)).toBeInTheDocument();
     expect(screen.getByText(/internet/i)).toBeInTheDocument();
+    expect(screen.getByText(/category breakdown/i)).toBeInTheDocument();
   });
 
   it('navigates from dashboard action buttons', async () => {
@@ -83,6 +92,7 @@ describe('Dashboard integration', () => {
       },
       recent_transactions: [],
       upcoming_bills: [],
+      category_breakdown: [],
       errors: [],
     });
 
@@ -99,5 +109,34 @@ describe('Dashboard integration', () => {
     await waitFor(() => expect(getDashboardSummaryMock).toHaveBeenCalled());
     await user.click(screen.getByRole('button', { name: /add transaction/i }));
     expect(await screen.findByText('Expenses Route')).toBeInTheDocument();
+  });
+
+  it('reloads summary when month filter changes', async () => {
+    getDashboardSummaryMock.mockResolvedValue({
+      period: { month: '2026-02' },
+      summary: {
+        net_flow: 0,
+        monthly_income: 0,
+        monthly_expenses: 0,
+        upcoming_bills_total: 0,
+        upcoming_bills_count: 0,
+      },
+      recent_transactions: [],
+      upcoming_bills: [],
+      category_breakdown: [],
+      errors: [],
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Routes>
+          <Route path="/dashboard" element={<Dashboard />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(getDashboardSummaryMock).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText(/dashboard month/i), { target: { value: '2026-01' } });
+    await waitFor(() => expect(getDashboardSummaryMock).toHaveBeenLastCalledWith('2026-01'));
   });
 });

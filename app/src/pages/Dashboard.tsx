@@ -31,13 +31,14 @@ export function Dashboard() {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await getDashboardSummary();
+        const res = await getDashboardSummary(month);
         setData(res);
       } catch (e: any) {
         setError(e?.message || 'Failed to load dashboard');
@@ -45,7 +46,7 @@ export function Dashboard() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [month]);
 
   const summary = useMemo(() => {
     if (!data) {
@@ -97,6 +98,7 @@ export function Dashboard() {
 
   const transactions = data?.recent_transactions ?? [];
   const upcomingBills = data?.upcoming_bills ?? [];
+  const categoryBreakdown = data?.category_breakdown ?? [];
 
   return (
     <div className="page-wrap">
@@ -107,7 +109,16 @@ export function Dashboard() {
             <p className="page-subtitle">Live overview for {data?.period?.month || 'current period'}.</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" size="sm">
+            <label className="sr-only" htmlFor="dashboard-month">Dashboard month</label>
+            <input
+              id="dashboard-month"
+              aria-label="Dashboard month"
+              type="month"
+              className="input h-9 w-[160px]"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+            />
+            <Button variant="outline" size="sm" onClick={() => setMonth(new Date().toISOString().slice(0, 7))}>
               <Calendar className="w-4 h-4" />
               This Month
             </Button>
@@ -196,7 +207,7 @@ export function Dashboard() {
           </FinancialCard>
         </div>
 
-        <div>
+        <div className="space-y-6">
           <FinancialCard variant="financial" className="fade-in-up">
             <FinancialCardHeader>
               <div className="flex items-center justify-between">
@@ -233,6 +244,32 @@ export function Dashboard() {
                 Add New Bill
               </Button>
             </FinancialCardFooter>
+          </FinancialCard>
+
+          <FinancialCard variant="financial" className="fade-in-up">
+            <FinancialCardHeader>
+              <FinancialCardTitle className="section-title">Category Breakdown</FinancialCardTitle>
+              <FinancialCardDescription>Expense mix for {data?.period?.month || month}</FinancialCardDescription>
+            </FinancialCardHeader>
+            <FinancialCardContent>
+              {categoryBreakdown.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No category data for this month.</div>
+              ) : (
+                <div className="space-y-3">
+                  {categoryBreakdown.slice(0, 6).map((row) => (
+                    <div key={`${row.category_id ?? 'uncat'}-${row.category_name}`} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-foreground">{row.category_name}</span>
+                        <span className="text-muted-foreground">{currency(row.amount)} ({row.share_pct.toFixed(0)}%)</span>
+                      </div>
+                      <div className="chart-track h-2">
+                        <div className="chart-fill-primary h-2" style={{ width: `${Math.max(2, Math.min(100, row.share_pct))}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </FinancialCardContent>
           </FinancialCard>
         </div>
       </div>

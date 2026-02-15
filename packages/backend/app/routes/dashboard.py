@@ -1,10 +1,10 @@
 from datetime import date
 from sqlalchemy import extract, func
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from ..extensions import db
-from ..models import Bill, Expense
+from ..models import Bill, Expense, Category
 from ..services.cache import cache_get, cache_set, dashboard_summary_key
 
 bp = Blueprint("dashboard", __name__)
@@ -14,7 +14,9 @@ bp = Blueprint("dashboard", __name__)
 @jwt_required()
 def dashboard_summary():
     uid = int(get_jwt_identity())
-    ym = date.today().strftime("%Y-%m")
+    ym = (request.args.get("month") or date.today().strftime("%Y-%m")).strip()
+    if not _is_valid_month(ym):
+        return jsonify(error="invalid month, expected YYYY-MM"), 400
     key = dashboard_summary_key(uid, ym)
     cached = cache_get(key)
     if cached:
@@ -31,6 +33,7 @@ def dashboard_summary():
         },
         "recent_transactions": [],
         "upcoming_bills": [],
+        "category_breakdown": [],
         "errors": [],
     }
 
@@ -122,5 +125,51 @@ def dashboard_summary():
     except Exception:
         payload["errors"].append("upcoming_bills_unavailable")
 
+    try:
+        category_rows = (
+            db.session.query(
+                Expense.category_id,
+                func.coalesce(Category.name, "Uncategorized").label("category_name"),
+                func.coalesce(func.sum(Expense.amount), 0).label("total_amount"),
+            )
+            .outerjoin(
+                Category,
+                (Category.id == Expense.category_id) & (Category.user_id == uid),
+            )
+            .filter(
+                Expense.user_id == uid,
+                extract("year", Expense.spent_at) == year,
+                extract("month", Expense.spent_at) == month,
+                Expense.expense_type != "INCOME",
+            )
+            .group_by(Expense.category_id, Category.name)
+            .order_by(func.sum(Expense.amount).desc())
+            .all()
+        )
+        total = sum(float(r.total_amount or 0) for r in category_rows)
+        payload["category_breakdown"] = [
+            {
+                "category_id": r.category_id,
+                "category_name": r.category_name,
+                "amount": float(r.total_amount or 0),
+                "share_pct": round((float(r.total_amount or 0) / total) * 100, 2)
+                if total > 0
+                else 0,
+            }
+            for r in category_rows
+        ]
+    except Exception:
+        payload["errors"].append("category_breakdown_unavailable")
+
     cache_set(key, payload, ttl_seconds=300)
     return jsonify(payload)
+
+
+def _is_valid_month(ym: str) -> bool:
+    if len(ym) != 7 or ym[4] != "-":
+        return False
+    year, month = ym.split("-")
+    if not (year.isdigit() and month.isdigit()):
+        return False
+    m = int(month)
+    return 1 <= m <= 12

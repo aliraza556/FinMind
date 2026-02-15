@@ -28,9 +28,16 @@ export type DashboardSummary = {
     channel_email: boolean;
     channel_whatsapp: boolean;
   }>;
+  category_breakdown: Array<{
+    category_id: number | null;
+    category_name: string;
+    amount: number;
+    share_pct: number;
+  }>;
   errors?: string[];
 };
 
-export async function getDashboardSummary(): Promise<DashboardSummary> {
-  return api<DashboardSummary>('/dashboard/summary');
+export async function getDashboardSummary(month?: string): Promise<DashboardSummary> {
+  const query = month ? `?month=${encodeURIComponent(month)}` : '';
+  return api<DashboardSummary>(`/dashboard/summary${query}`);
 }

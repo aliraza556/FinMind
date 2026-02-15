@@ -3,6 +3,7 @@ import pytest
 from app import create_app
 from app.config import Settings
 from app.extensions import db
+from app.extensions import redis_client
 from app import models  # noqa: F401 - ensure models are registered
 
 
@@ -30,10 +31,18 @@ def app_fixture():
     app = create_app(settings)
     app.config.update(TESTING=True)
     _setup_db(app)
+    try:
+        redis_client.flushdb()
+    except Exception:
+        pass
     yield app
     with app.app_context():
         db.session.remove()
         db.drop_all()
+    try:
+        redis_client.flushdb()
+    except Exception:
+        pass
 
 
 @pytest.fixture()

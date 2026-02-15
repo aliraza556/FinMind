@@ -31,7 +31,14 @@ def extract_transactions_from_statement(
         return _parse_csv_rows(data)
     if name.endswith(".pdf") or "pdf" in ctype:
         text = _extract_pdf_text(data)
-        return _extract_with_gemini(text, gemini_api_key, gemini_model)
+        if gemini_api_key:
+            try:
+                ai_rows = _extract_with_gemini(text, gemini_api_key, gemini_model)
+                if normalize_import_rows(ai_rows):
+                    return ai_rows
+            except Exception:
+                pass
+        return _extract_pdf_rows_fallback(text)
     raise ValueError("Only PDF and CSV files are supported")
 
 
@@ -43,15 +50,16 @@ def normalize_import_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         desc = str(row.get("description") or "").strip()
         if not dt or amt is None or not desc:
             continue
+        expense_type = _infer_expense_type(row.get("expense_type"), desc, amt)
         cid = row.get("category_id")
         category_id = int(cid) if cid not in (None, "", "null") else None
         normalized.append(
             {
                 "date": dt,
-                "amount": float(amt),
+                "amount": float(abs(amt)),
                 "description": desc[:500],
                 "category_id": category_id,
-                "expense_type": str(row.get("expense_type") or "EXPENSE").upper(),
+                "expense_type": expense_type,
                 "currency": str(row.get("currency") or "USD")[:10],
             }
         )
@@ -162,10 +170,89 @@ def _normalize_date(value: Any) -> str | None:
 def _normalize_amount(value: Any) -> Decimal | None:
     if value in (None, ""):
         return None
-    cleaned = re.sub(r"[^\d\.\-]", "", str(value))
+    raw = str(value).strip()
+    negative_parens = raw.startswith("(") and raw.endswith(")")
+    cleaned = re.sub(r"[^\d\.\-]", "", raw)
     if not cleaned:
         return None
     try:
-        return Decimal(cleaned).quantize(Decimal("0.01"))
+        out = Decimal(cleaned).quantize(Decimal("0.01"))
+        return -abs(out) if negative_parens else out
     except (InvalidOperation, ValueError):
         return None
+
+
+def _infer_expense_type(raw_type: Any, description: str, amount: Decimal) -> str:
+    t = str(raw_type or "").strip().upper()
+    if t in {"INCOME", "EXPENSE"}:
+        return t
+    if amount < 0:
+        return "EXPENSE"
+    income_keywords = ("SALARY", "PAYROLL", "REFUND", "INTEREST", "DIVIDEND", "CREDIT")
+    if any(k in description.upper() for k in income_keywords):
+        return "INCOME"
+    return "EXPENSE"
+
+
+def _extract_pdf_rows_fallback(text: str) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for raw_line in text.splitlines():
+        line = re.sub(r"\s+", " ", raw_line).strip()
+        if not line:
+            continue
+        parsed = _parse_pdf_line(line)
+        if not parsed:
+            continue
+        key = (
+            str(parsed.get("date")),
+            str(parsed.get("amount")),
+            str(parsed.get("description")),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.append(parsed)
+    return rows
+
+
+def _parse_pdf_line(line: str) -> dict[str, Any] | None:
+    date_patterns = (
+        r"^(\d{4}-\d{2}-\d{2})\s+(.+)$",
+        r"^(\d{2}/\d{2}/\d{4})\s+(.+)$",
+        r"^(\d{2}/\d{2}/\d{2})\s+(.+)$",
+        r"^(\d{2}-\d{2}-\d{4})\s+(.+)$",
+    )
+    rest: str | None = None
+    tx_date: str | None = None
+    for pattern in date_patterns:
+        m = re.match(pattern, line)
+        if m:
+            tx_date = _normalize_date(m.group(1))
+            rest = m.group(2).strip()
+            break
+    if not tx_date or not rest:
+        return None
+
+    amount_matches = list(
+        re.finditer(r"(?<!\w)\(?-?\$?\d[\d,]*(?:\.\d{2})?\)?(?!\w)", rest)
+    )
+    if not amount_matches:
+        return None
+    amount_match = amount_matches[-1]
+    amount = _normalize_amount(amount_match.group(0))
+    if amount is None:
+        return None
+
+    description = rest[: amount_match.start()].strip(" -\t")
+    if len(description) < 2:
+        return None
+
+    return {
+        "date": tx_date,
+        "amount": float(abs(amount)),
+        "description": description,
+        "category_id": None,
+        "expense_type": _infer_expense_type(None, description, amount),
+        "currency": "USD",
+    }

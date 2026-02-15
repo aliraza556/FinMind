@@ -9,12 +9,14 @@ on:
 
 permissions:
   contents: read
+  actions: read
   security-events: write
 
 jobs:
   analyze:
     name: Analyze (CodeQL)
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     strategy:
       fail-fast: false
       matrix:

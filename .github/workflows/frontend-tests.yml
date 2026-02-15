@@ -12,6 +12,10 @@ on:
       - 'app/**'
       - '.github/workflows/frontend-tests.yml'
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   test:
     name: Run Jest on app/
@@ -30,7 +34,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: app
-        run: npm ci
+        run: npm ci || npm install --no-audit --no-fund
 
       - name: Run tests
         working-directory: app

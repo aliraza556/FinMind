@@ -51,6 +51,7 @@ def normalize_import_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "amount": float(amt),
                 "description": desc[:500],
                 "category_id": category_id,
+                "expense_type": str(row.get("expense_type") or "EXPENSE").upper(),
                 "currency": str(row.get("currency") or "USD")[:10],
             }
         )

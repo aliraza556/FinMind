@@ -6,10 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..models import Expense
 from ..services.cache import cache_delete_patterns, monthly_summary_key
-from ..services.expense_import import (
-    extract_transactions_from_statement,
-    normalize_import_rows,
-)
+from ..services import expense_import
 import logging
 
 bp = Blueprint("expenses", __name__)
@@ -71,6 +68,7 @@ def create_expense():
         user_id=uid,
         amount=amount,
         currency=data.get("currency", "USD"),
+        expense_type=str(data.get("expense_type") or "EXPENSE").upper(),
         category_id=data.get("category_id"),
         notes=description,
         spent_at=date.fromisoformat(raw_date) if raw_date else date.today(),
@@ -103,6 +101,8 @@ def update_expense(expense_id: int):
         e.amount = amount
     if "currency" in data:
         e.currency = str(data.get("currency") or "USD")[:10]
+    if "expense_type" in data:
+        e.expense_type = str(data.get("expense_type") or "EXPENSE").upper()
     if "category_id" in data:
         e.category_id = data.get("category_id")
     if "description" in data or "notes" in data:
@@ -141,14 +141,14 @@ def import_preview():
         return jsonify(error="file required"), 400
     raw = file.read()
     try:
-        rows = extract_transactions_from_statement(
+        rows = expense_import.extract_transactions_from_statement(
             filename=file.filename or "",
             content_type=file.content_type,
             data=raw,
             gemini_api_key=current_app.config.get("GEMINI_API_KEY"),
             gemini_model=current_app.config.get("GEMINI_MODEL", "gemini-1.5-flash"),
         )
-        transactions = normalize_import_rows(rows)
+        transactions = expense_import.normalize_import_rows(rows)
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
     except Exception as exc:  # pragma: no cover
@@ -168,7 +168,7 @@ def import_commit():
     rows = data.get("transactions") or []
     if not isinstance(rows, list) or not rows:
         return jsonify(error="transactions required"), 400
-    transactions = normalize_import_rows(rows)
+    transactions = expense_import.normalize_import_rows(rows)
     inserted = 0
     duplicates = 0
     touched_months: set[str] = set()
@@ -180,6 +180,7 @@ def import_commit():
             user_id=uid,
             amount=t["amount"],
             currency=t.get("currency", "USD"),
+            expense_type=str(t.get("expense_type") or "EXPENSE").upper(),
             category_id=t.get("category_id"),
             notes=t["description"],
             spent_at=date.fromisoformat(t["date"]),
@@ -199,6 +200,7 @@ def _expense_to_dict(e: Expense) -> dict:
         "amount": float(e.amount),
         "currency": e.currency,
         "category_id": e.category_id,
+        "expense_type": e.expense_type,
         "description": e.notes or "",
         "date": e.spent_at.isoformat(),
     }
@@ -230,4 +232,10 @@ def _is_duplicate(uid: int, row: dict) -> bool:
 
 def _invalidate_expense_cache(uid: int, at: str):
     ym = at[:7]
-    cache_delete_patterns([monthly_summary_key(uid, ym), f"insights:{uid}:*"])
+    cache_delete_patterns(
+        [
+            monthly_summary_key(uid, ym),
+            f"insights:{uid}:*",
+            f"user:{uid}:dashboard_summary:*",
+        ]
+    )

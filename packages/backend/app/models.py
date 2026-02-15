@@ -33,6 +33,7 @@ class Expense(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"), nullable=True)
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     currency = db.Column(db.String(10), default="USD", nullable=False)
+    expense_type = db.Column(db.String(20), default="EXPENSE", nullable=False)
     notes = db.Column(db.String(500), nullable=True)
     spent_at = db.Column(db.Date, default=date.today, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

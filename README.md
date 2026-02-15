@@ -150,6 +150,14 @@ finmind/
 3) Start: `docker compose up --build`
 4) Frontend at http://localhost:5173, Backend at http://localhost:8000
 
+### Backend Test Runner (No local pytest setup required)
+- PowerShell (Windows):
+  - `./scripts/test-backend.ps1`
+  - single file: `./scripts/test-backend.ps1 tests/test_dashboard.py`
+- POSIX shell:
+  - `sh ./scripts/test-backend.sh`
+  - single file: `sh ./scripts/test-backend.sh tests/test_dashboard.py`
+
 ## Testing & CI
 - Backend: pytest, flake8, black. Frontend: vitest, eslint.
 - GitHub Actions `ci.yml` runs lint, tests, and builds both apps; optional docker build.

@@ -20,11 +20,15 @@ CREATE TABLE IF NOT EXISTS expenses (
   category_id INT REFERENCES categories(id) ON DELETE SET NULL,
   amount NUMERIC(12,2) NOT NULL,
   currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+  expense_type VARCHAR(20) NOT NULL DEFAULT 'EXPENSE',
   notes VARCHAR(500),
   spent_at DATE NOT NULL DEFAULT CURRENT_DATE,
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_expenses_user_spent_at ON expenses(user_id, spent_at DESC);
+
+ALTER TABLE expenses
+  ADD COLUMN IF NOT EXISTS expense_type VARCHAR(20) NOT NULL DEFAULT 'EXPENSE';
 
 DO $$ BEGIN
   CREATE TYPE bill_cadence AS ENUM ('MONTHLY','WEEKLY','YEARLY','ONCE');

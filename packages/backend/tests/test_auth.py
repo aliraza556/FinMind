@@ -3,7 +3,7 @@ def test_auth_refresh_flow(client):
     email = "refresh@test.com"
     password = "secret123"
     r = client.post("/auth/register", json={"email": email, "password": password})
-    assert r.status_code in (201, 400)  # 400 if already exists
+    assert r.status_code in (201, 409)  # 409 if already exists
 
     # Login to get tokens
     r = client.post("/auth/login", json={"email": email, "password": password})

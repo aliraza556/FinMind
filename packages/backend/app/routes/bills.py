@@ -56,7 +56,7 @@ def create_bill():
     db.session.add(b)
     db.session.commit()
     logger.info("Created bill id=%s user=%s name=%s", b.id, uid, b.name)
-    cache_delete_patterns([f"user:{uid}:upcoming_bills*"])
+    cache_delete_patterns([f"user:{uid}:upcoming_bills*", f"user:{uid}:dashboard_summary:*"])
     return jsonify(id=b.id), 201
 
 
@@ -77,7 +77,7 @@ def mark_paid(bill_id: int):
     else:
         b.active = False
     db.session.commit()
-    cache_delete_patterns([f"user:{uid}:upcoming_bills*"])
+    cache_delete_patterns([f"user:{uid}:upcoming_bills*", f"user:{uid}:dashboard_summary:*"])
     logger.info(
         "Marked bill paid id=%s user=%s next_due_date=%s", b.id, uid, b.next_due_date
     )

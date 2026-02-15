@@ -22,11 +22,18 @@ def _setup_db(app):
 def app_fixture():
     # Ensure a clean env for tests
     os.environ.setdefault("FLASK_ENV", "testing")
-    settings = TestSettings()
+    settings = TestSettings(
+        database_url="sqlite+pysqlite:///:memory:",
+        redis_url="redis://localhost:6379/15",
+        jwt_secret="test-secret-with-32-plus-chars-1234567890",
+    )
     app = create_app(settings)
     app.config.update(TESTING=True)
     _setup_db(app)
     yield app
+    with app.app_context():
+        db.session.remove()
+        db.drop_all()
 
 
 @pytest.fixture()
@@ -40,7 +47,9 @@ def auth_header(client):
     email = "test@example.com"
     password = "password123"
     r = client.post("/auth/register", json={"email": email, "password": password})
-    assert r.status_code in (200, 201, 409)  # 409 if already exists
+    assert r.status_code in (200, 201, 409), (
+        f"register failed: status={r.status_code}, body={r.get_json()}"
+    )  # 409 if already exists
     r = client.post("/auth/login", json={"email": email, "password": password})
     assert r.status_code == 200
     access = r.get_json()["access_token"]

@@ -24,7 +24,7 @@ def register():
         return jsonify(error="email and password required"), 400
     if db.session.query(User).filter_by(email=email).first():
         logger.info("Register email already used: %s", email)
-        return jsonify(error="email already used"), 400
+        return jsonify(error="email already used"), 409
     user = User(email=email, password_hash=generate_password_hash(password))
     db.session.add(user)
     db.session.commit()

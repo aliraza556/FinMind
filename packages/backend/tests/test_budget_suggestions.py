@@ -8,7 +8,7 @@ Covers:
 - Edge cases (no data, single month, etc.)
 """
 
-from datetime import date, timedelta
+from datetime import date
 from dateutil.relativedelta import relativedelta
 
 

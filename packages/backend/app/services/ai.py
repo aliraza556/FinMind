@@ -157,9 +157,7 @@ def _compute_trend_pct(values: list[float]) -> float:
     return round(((recent - older_avg) / older_avg) * 100, 1)
 
 
-def _build_category_suggestions(
-    category_data: dict, months: list[str]
-) -> list[dict]:
+def _build_category_suggestions(category_data: dict, months: list[str]) -> list[dict]:
     """Build per-category budget suggestions with trends."""
     suggestions = []
     sorted_months = sorted(months)
@@ -185,14 +183,12 @@ def _build_category_suggestions(
                 "average_spending": round(avg, 2),
                 "trend_pct": trend_pct,
                 "trend_direction": (
-                    "increasing" if trend_pct > 2
-                    else "decreasing" if trend_pct < -2
-                    else "stable"
+                    "increasing"
+                    if trend_pct > 2
+                    else "decreasing" if trend_pct < -2 else "stable"
                 ),
                 "months_with_data": months_active,
-                "monthly_history": {
-                    m: monthly.get(m, 0.0) for m in sorted_months
-                },
+                "monthly_history": {m: monthly.get(m, 0.0) for m in sorted_months},
             }
         )
 
@@ -246,9 +242,9 @@ def _heuristic_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
         "confidence": confidence,
         "spending_trend": {
             "direction": (
-                "increasing" if trend_pct > 2
-                else "decreasing" if trend_pct < -2
-                else "stable"
+                "increasing"
+                if trend_pct > 2
+                else "decreasing" if trend_pct < -2 else "stable"
             ),
             "change_pct": trend_pct,
         },

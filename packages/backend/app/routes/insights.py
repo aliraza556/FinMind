@@ -29,9 +29,7 @@ def budget_suggestion():
     cache_key = budget_suggestion_key(uid, ym, lookback)
     cached = cache_get(cache_key)
     if cached:
-        logger.info(
-            "Budget suggestion cache hit user=%s month=%s", uid, ym
-        )
+        logger.info("Budget suggestion cache hit user=%s month=%s", uid, ym)
         return jsonify(cached)
 
     suggestion = monthly_budget_suggestion(uid, ym, lookback)

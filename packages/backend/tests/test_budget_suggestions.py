@@ -7,6 +7,7 @@ Covers:
 - Cache behavior
 - Edge cases (no data, single month, etc.)
 """
+
 from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
@@ -19,7 +20,9 @@ def _create_category(client, auth_header, name="General"):
     return next(c["id"] for c in categories if c["name"] == name)
 
 
-def _add_expense(client, auth_header, amount, desc, dt, category_id=None, expense_type="EXPENSE"):
+def _add_expense(
+    client, auth_header, amount, desc, dt, category_id=None, expense_type="EXPENSE"
+):
     payload = {
         "amount": amount,
         "description": desc,
@@ -38,8 +41,12 @@ def _seed_multi_month_expenses(client, auth_header, food_id, transport_id, month
     today = date.today().replace(day=15)
     for i in range(1, months + 1):
         target = today - relativedelta(months=i)
-        _add_expense(client, auth_header, 300 + (i * 10), f"Groceries month-{i}", target, food_id)
-        _add_expense(client, auth_header, 150 + (i * 5), f"Gas month-{i}", target, transport_id)
+        _add_expense(
+            client, auth_header, 300 + (i * 10), f"Groceries month-{i}", target, food_id
+        )
+        _add_expense(
+            client, auth_header, 150 + (i * 5), f"Gas month-{i}", target, transport_id
+        )
         _add_expense(client, auth_header, 100, f"Misc month-{i}", target)
 
 
@@ -100,7 +107,11 @@ class TestBudgetSuggestionEndpoint:
         assert data["suggested_total"] > 0
 
         assert "spending_trend" in data
-        assert data["spending_trend"]["direction"] in ("increasing", "decreasing", "stable")
+        assert data["spending_trend"]["direction"] in (
+            "increasing",
+            "decreasing",
+            "stable",
+        )
         assert isinstance(data["spending_trend"]["change_pct"], (int, float))
 
         cats = data["category_suggestions"]
@@ -118,9 +129,7 @@ class TestBudgetSuggestionEndpoint:
     def test_data_range_reflects_actual_months(self, client, auth_header):
         """data_range should accurately reflect the analyzed period."""
         food_id = _create_category(client, auth_header, "Food")
-        _seed_multi_month_expenses(
-            client, auth_header, food_id, food_id, months=4
-        )
+        _seed_multi_month_expenses(client, auth_header, food_id, food_id, months=4)
 
         r = client.get("/insights/budget-suggestion", headers=auth_header)
         data = r.get_json()
@@ -146,47 +155,35 @@ class TestBudgetSuggestionEndpoint:
     def test_lookback_param_3_months(self, client, auth_header):
         """When months=3, should only look back 3 months."""
         food_id = _create_category(client, auth_header, "Food")
-        _seed_multi_month_expenses(
-            client, auth_header, food_id, food_id, months=6
-        )
+        _seed_multi_month_expenses(client, auth_header, food_id, food_id, months=6)
 
-        r = client.get(
-            "/insights/budget-suggestion?months=3", headers=auth_header
-        )
+        r = client.get("/insights/budget-suggestion?months=3", headers=auth_header)
         assert r.status_code == 200
         data = r.get_json()
         assert data["data_range"]["months_requested"] == 3
 
     def test_lookback_param_clamped(self, client, auth_header):
         """Lookback should be clamped between 3 and 6."""
-        r = client.get(
-            "/insights/budget-suggestion?months=1", headers=auth_header
-        )
+        r = client.get("/insights/budget-suggestion?months=1", headers=auth_header)
         assert r.status_code == 200
         data = r.get_json()
         assert data["data_range"]["months_requested"] == 3
 
-        r = client.get(
-            "/insights/budget-suggestion?months=12", headers=auth_header
-        )
+        r = client.get("/insights/budget-suggestion?months=12", headers=auth_header)
         assert r.status_code == 200
         data = r.get_json()
         assert data["data_range"]["months_requested"] == 6
 
     def test_month_param_accepted(self, client, auth_header):
         """Custom month parameter should be reflected in response."""
-        r = client.get(
-            "/insights/budget-suggestion?month=2026-01", headers=auth_header
-        )
+        r = client.get("/insights/budget-suggestion?month=2026-01", headers=auth_header)
         assert r.status_code == 200
         data = r.get_json()
         assert data["month"] == "2026-01"
 
     def test_invalid_month_rejected(self, client, auth_header):
         """Invalid month format should return 400."""
-        r = client.get(
-            "/insights/budget-suggestion?month=invalid", headers=auth_header
-        )
+        r = client.get("/insights/budget-suggestion?month=invalid", headers=auth_header)
         assert r.status_code == 400
         assert "invalid month" in r.get_json()["error"]
 
@@ -229,9 +226,9 @@ class TestConfidenceScoring:
             scores.append(data["confidence"]["score"])
 
         for j in range(1, len(scores)):
-            assert scores[j] >= scores[j - 1], (
-                f"Confidence should be non-decreasing: {scores}"
-            )
+            assert (
+                scores[j] >= scores[j - 1]
+            ), f"Confidence should be non-decreasing: {scores}"
 
 
 class TestCategoryTrends:

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X, TrendingUp, Shield } from 'lucide-react';
+import { Menu, X, TrendingUp, ShieldCheck } from 'lucide-react';
 import { getToken, clearToken, clearRefreshToken } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -24,7 +24,6 @@ export function Navbar() {
   useEffect(() => {
     const onChange = () => setIsAuthed(!!getToken());
     window.addEventListener('auth_changed', onChange);
-    // also check on initial mount in case of direct load
     onChange();
     return () => window.removeEventListener('auth_changed', onChange);
   }, []);
@@ -37,49 +36,53 @@ export function Navbar() {
   };
 
   return (
-    <nav className="bg-card border-b border-border shadow-sm">
-      <div className="container-financial">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="flex items-center justify-center w-8 h-8 bg-gradient-primary rounded-lg">
-              <TrendingUp className="w-5 h-5 text-primary-foreground" />
+    <nav className="glass-nav">
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/8 via-transparent to-accent/10 pointer-events-none" />
+      <div className="container-financial relative">
+        <div className="flex h-16 items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-hero text-primary-foreground shadow-primary">
+              <TrendingUp className="h-5 w-5" />
             </div>
-            <span className="text-xl font-bold text-foreground">FinMind</span>
+            <div>
+              <div className="text-base font-extrabold leading-none">FinMind</div>
+              <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Money OS</div>
+            </div>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`text-sm font-medium transition-colors duration-200 ${
-                  location.pathname === item.href
-                    ? 'text-primary border-b-2 border-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {item.name}
-              </Link>
-            ))}
+          <div className="hidden items-center gap-1 md:flex">
+            {navigation.map((item) => {
+              const active = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={
+                    active
+                      ? 'rounded-full bg-secondary px-4 py-2 text-xs font-semibold text-secondary-foreground shadow-sm'
+                      : 'rounded-full px-4 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground'
+                  }
+                >
+                  {item.name}
+                </Link>
+              );
+            })}
           </div>
 
-          {/* Desktop Actions */}
-          <div className="hidden md:flex items-center space-x-4">
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-              <Shield className="w-4 h-4" />
-              <span>Secure</span>
+          <div className="hidden items-center gap-3 md:flex">
+            <div className="flex items-center gap-1 rounded-full border border-border/70 bg-white/70 px-3 py-1 text-[11px] text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+              Enterprise-grade security
             </div>
             {isAuthed ? (
-              <div className="flex items-center space-x-2">
+              <>
                 <Button variant="outline" size="sm" asChild>
                   <Link to="/dashboard">Account</Link>
                 </Button>
                 <Button variant="hero" size="sm" onClick={handleLogout}>
                   Logout
                 </Button>
-              </div>
+              </>
             ) : (
               <>
                 <Button variant="outline" size="sm" asChild>
@@ -92,37 +95,34 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Mobile menu button */}
           <div className="md:hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsOpen(!isOpen)}
-            >
-              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            <Button variant="ghost" size="icon" onClick={() => setIsOpen((v) => !v)}>
+              {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-border">
-            <div className="flex flex-col space-y-3">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`text-base font-medium transition-colors duration-200 px-4 py-2 rounded-lg ${
-                    location.pathname === item.href
-                      ? 'text-primary bg-primary-light'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }`}
-                  onClick={() => setIsOpen(false)}
-                >
-                  {item.name}
-                </Link>
-              ))}
-              <div className="flex flex-col space-y-2 px-4 pt-4 border-t border-border">
+          <div className="md:hidden pb-4">
+            <div className="space-y-2 rounded-2xl border border-border/60 bg-white/90 p-3 shadow-md">
+              {navigation.map((item) => {
+                const active = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    onClick={() => setIsOpen(false)}
+                    className={
+                      active
+                        ? 'block rounded-lg bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground'
+                        : 'block rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-muted'
+                    }
+                  >
+                    {item.name}
+                  </Link>
+                );
+              })}
+              <div className="grid grid-cols-2 gap-2 pt-2">
                 {isAuthed ? (
                   <>
                     <Button variant="outline" size="sm" asChild onClick={() => setIsOpen(false)}>

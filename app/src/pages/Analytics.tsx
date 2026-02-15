@@ -80,19 +80,16 @@ export function Analytics() {
   const savingsChange = ((currentMonth.savings - previousMonth.savings) / previousMonth.savings * 100);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container-financial py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+    <div className="page-wrap">
+      <div className="page-header">
+        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              Financial Analytics
-            </h1>
-            <p className="text-muted-foreground">
+            <h1 className="page-title">Financial Analytics</h1>
+            <p className="page-subtitle">
               Deep insights into your financial patterns and performance
             </p>
           </div>
-          <div className="flex gap-3 mt-4 sm:mt-0">
+          <div className="flex gap-3">
             <Button variant="outline" size="sm">
               <Filter className="w-4 h-4" />
               Filter
@@ -107,9 +104,10 @@ export function Analytics() {
             </Button>
           </div>
         </div>
+      </div>
 
         {/* Key Metrics */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
+        <div className="grid gap-4 md:grid-cols-4 mb-8">
           <FinancialCard variant="financial">
             <FinancialCardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -120,7 +118,7 @@ export function Analytics() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">
+              <div className="metric-value text-foreground mb-1">
                 ${currentMonth.income.toLocaleString()}
               </div>
               <div className="flex items-center text-sm">
@@ -147,7 +145,7 @@ export function Analytics() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">
+              <div className="metric-value text-foreground mb-1">
                 ${currentMonth.expenses.toLocaleString()}
               </div>
               <div className="flex items-center text-sm">
@@ -174,7 +172,7 @@ export function Analytics() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold mb-1">
+              <div className="metric-value mb-1">
                 ${currentMonth.savings.toLocaleString()}
               </div>
               <div className="flex items-center text-sm opacity-80">
@@ -195,7 +193,7 @@ export function Analytics() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">
+              <div className="metric-value text-foreground mb-1">
                 {((currentMonth.savings / currentMonth.income) * 100).toFixed(1)}%
               </div>
               <div className="text-sm text-muted-foreground">
@@ -206,12 +204,12 @@ export function Analytics() {
         </div>
 
         {/* Main Analytics */}
-        <div className="grid lg:grid-cols-3 gap-8 mb-8">
+        <div className="grid gap-6 lg:grid-cols-3 mb-8">
           {/* Expense Breakdown */}
           <div className="lg:col-span-2">
-            <FinancialCard variant="financial">
+            <FinancialCard variant="financial" className="fade-in-up">
               <FinancialCardHeader>
-                <FinancialCardTitle className="text-lg">Expense Breakdown</FinancialCardTitle>
+                <FinancialCardTitle className="section-title">Expense Breakdown</FinancialCardTitle>
                 <FinancialCardDescription>
                   Where your money goes each month
                 </FinancialCardDescription>
@@ -219,10 +217,18 @@ export function Analytics() {
               <FinancialCardContent>
                 <div className="space-y-4">
                   {expenseCategories.map((category, index) => (
-                    <div key={index} className="space-y-2">
+                    <div key={index} className="space-y-2 interactive-row">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <div className={`w-4 h-4 rounded-full ${category.color}`}></div>
+                          <div className={
+                            category.name === 'Housing' ? 'chart-dot-primary' :
+                            category.name === 'Food' ? 'chart-dot-success' :
+                            category.name === 'Transportation' ? 'chart-dot-danger' :
+                            category.name === 'Entertainment' ? 'chart-dot-accent' :
+                            category.name === 'Healthcare' ? 'chart-dot-warning' :
+                            category.name === 'Shopping' ? 'chart-dot-secondary' :
+                            'chart-dot'
+                          }></div>
                           <span className="font-medium text-foreground">{category.name}</span>
                         </div>
                         <div className="flex items-center space-x-4">
@@ -248,9 +254,17 @@ export function Analytics() {
                           </div>
                         </div>
                       </div>
-                      <div className="w-full bg-muted rounded-full h-2">
+                      <div className="chart-track">
                         <div 
-                          className={`h-2 rounded-full ${category.color}`}
+                          className={
+                            category.name === 'Housing' ? 'chart-fill-primary' :
+                            category.name === 'Food' ? 'chart-fill-success' :
+                            category.name === 'Transportation' ? 'chart-fill-danger' :
+                            category.name === 'Entertainment' ? 'chart-fill-accent' :
+                            category.name === 'Healthcare' ? 'chart-fill-warning' :
+                            category.name === 'Shopping' ? 'chart-fill-primary' :
+                            'chart-fill-primary'
+                          }
                           style={{ width: `${category.percentage}%` }}
                         />
                       </div>
@@ -263,9 +277,9 @@ export function Analytics() {
 
           {/* Insights */}
           <div>
-            <FinancialCard variant="financial">
+            <FinancialCard variant="financial" className="fade-in-up">
               <FinancialCardHeader>
-                <FinancialCardTitle className="text-lg">Financial Insights</FinancialCardTitle>
+                <FinancialCardTitle className="section-title">Financial Insights</FinancialCardTitle>
                 <FinancialCardDescription>
                   AI-powered recommendations
                 </FinancialCardDescription>
@@ -273,7 +287,7 @@ export function Analytics() {
               <FinancialCardContent>
                 <div className="space-y-4">
                   {savingsInsights.map((insight, index) => (
-                    <div key={index} className="p-3 rounded-lg border border-border">
+                    <div key={index} className="interactive-row p-3 rounded-lg border border-border">
                       <div className="flex items-center justify-between mb-2">
                         <div className="font-medium text-foreground text-sm">
                           {insight.title}
@@ -309,9 +323,9 @@ export function Analytics() {
         </div>
 
         {/* Financial Goals Progress */}
-        <FinancialCard variant="financial">
+        <FinancialCard variant="financial" className="fade-in-up">
           <FinancialCardHeader>
-            <FinancialCardTitle className="text-lg">Financial Goals Progress</FinancialCardTitle>
+            <FinancialCardTitle className="section-title">Financial Goals Progress</FinancialCardTitle>
             <FinancialCardDescription>
               Track your progress towards financial milestones
             </FinancialCardDescription>
@@ -319,7 +333,7 @@ export function Analytics() {
           <FinancialCardContent>
             <div className="grid md:grid-cols-3 gap-6">
               {financialGoals.map((goal, index) => (
-                <div key={index} className="p-4 rounded-lg border border-border">
+                <div key={index} className="interactive-row p-4 rounded-lg border border-border">
                   <div className="flex items-center justify-between mb-3">
                     <div className="font-medium text-foreground">{goal.title}</div>
                     <Badge 
@@ -342,9 +356,9 @@ export function Analytics() {
                         {((goal.current / goal.target) * 100).toFixed(0)}%
                       </span>
                     </div>
-                    <div className="w-full bg-muted rounded-full h-2">
+                    <div className="chart-track">
                       <div 
-                        className="bg-primary h-2 rounded-full"
+                        className="chart-fill-primary"
                         style={{ width: `${Math.min((goal.current / goal.target) * 100, 100)}%` }}
                       />
                     </div>
@@ -357,7 +371,6 @@ export function Analytics() {
             </div>
           </FinancialCardContent>
         </FinancialCard>
-      </div>
     </div>
   );
 }

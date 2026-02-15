@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { FinancialCard, FinancialCardContent, FinancialCardDescription, FinancialCardFooter, FinancialCardHeader, FinancialCardTitle } from '@/components/ui/financial-card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, DollarSign, Plus, PieChart, TrendingDown, TrendingUp, Target, AlertCircle, Settings } from 'lucide-react';
 
@@ -106,19 +105,16 @@ export function Budgets() {
   const totalRemaining = totalAllocated - totalSpent;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container-financial py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+    <div className="page-wrap">
+      <div className="page-header">
+        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              Budget Management
-            </h1>
-            <p className="text-muted-foreground">
+            <h1 className="page-title">Budget Management</h1>
+            <p className="page-subtitle">
               Track your spending and stay on top of your financial goals
             </p>
           </div>
-          <div className="flex gap-3 mt-4 sm:mt-0">
+          <div className="flex gap-3">
             <Button variant="outline" size="sm">
               <Calendar className="w-4 h-4" />
               {selectedPeriod === 'monthly' ? 'Monthly' : 'Weekly'}
@@ -129,9 +125,10 @@ export function Budgets() {
             </Button>
           </div>
         </div>
+      </div>
 
         {/* Budget Overview */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid gap-4 md:grid-cols-3 mb-8">
           <FinancialCard variant="financial">
             <FinancialCardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -142,7 +139,7 @@ export function Budgets() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">
+              <div className="metric-value text-foreground mb-1">
                 ${totalAllocated.toLocaleString()}
               </div>
               <div className="text-sm text-muted-foreground">
@@ -161,7 +158,7 @@ export function Budgets() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">
+              <div className="metric-value text-foreground mb-1">
                 ${totalSpent.toLocaleString()}
               </div>
               <div className="text-sm text-muted-foreground">
@@ -184,7 +181,7 @@ export function Budgets() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold mb-1">
+              <div className="metric-value mb-1">
                 ${Math.abs(totalRemaining).toLocaleString()}
               </div>
               <div className="text-sm opacity-80">
@@ -195,12 +192,12 @@ export function Budgets() {
         </div>
 
         {/* Budget Categories */}
-        <div className="grid lg:grid-cols-3 gap-8 mb-8">
+        <div className="grid gap-6 lg:grid-cols-3 mb-8">
           <div className="lg:col-span-2">
-            <FinancialCard variant="financial">
+            <FinancialCard variant="financial" className="fade-in-up">
               <FinancialCardHeader>
                 <div className="flex items-center justify-between">
-                  <FinancialCardTitle className="text-lg">Budget Categories</FinancialCardTitle>
+                  <FinancialCardTitle className="section-title">Budget Categories</FinancialCardTitle>
                   <Button variant="ghost" size="sm">
                     <Settings className="w-4 h-4" />
                   </Button>
@@ -216,7 +213,7 @@ export function Budgets() {
                     const isOverBudget = category.remaining < 0;
                     
                     return (
-                      <div key={category.id} className="space-y-3">
+                      <div key={category.id} className="space-y-3 interactive-row">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
                             <div className={`w-4 h-4 rounded-full ${category.color}`}></div>
@@ -247,10 +244,12 @@ export function Budgets() {
                             </div>
                           </div>
                         </div>
-                        <Progress 
-                          value={Math.min(percentage, 100)} 
-                          className={`h-2 ${isOverBudget ? 'bg-destructive-light' : ''}`}
-                        />
+                        <div className={`chart-track ${isOverBudget ? 'bg-destructive-light' : ''}`}>
+                          <div
+                            className={isOverBudget ? 'chart-fill-danger' : 'chart-fill-primary'}
+                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                          />
+                        </div>
                         {isOverBudget && (
                           <Badge variant="destructive" className="text-xs">
                             Over Budget
@@ -266,10 +265,10 @@ export function Budgets() {
 
           {/* Savings Goals */}
           <div>
-            <FinancialCard variant="financial">
+            <FinancialCard variant="financial" className="fade-in-up">
               <FinancialCardHeader>
                 <div className="flex items-center justify-between">
-                  <FinancialCardTitle className="text-lg">Savings Goals</FinancialCardTitle>
+                  <FinancialCardTitle className="section-title">Savings Goals</FinancialCardTitle>
                   <Button variant="ghost" size="sm">
                     <Plus className="w-4 h-4" />
                   </Button>
@@ -284,7 +283,7 @@ export function Budgets() {
                     const percentage = (goal.current / goal.target) * 100;
                     
                     return (
-                      <div key={goal.id} className="p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                      <div key={goal.id} className="interactive-row p-3 rounded-lg border border-border">
                         <div className="flex items-center justify-between mb-2">
                           <div className="font-medium text-foreground text-sm">
                             {goal.title}
@@ -309,7 +308,9 @@ export function Budgets() {
                               {percentage.toFixed(0)}%
                             </span>
                           </div>
-                          <Progress value={percentage} className="h-2" />
+                          <div className="chart-track">
+                            <div className="chart-fill-success" style={{ width: `${Math.min(percentage, 100)}%` }} />
+                          </div>
                           <div className="flex justify-between text-xs text-muted-foreground">
                             <span>Target: {goal.deadline}</span>
                             <span>${goal.monthlyTarget}/mo</span>
@@ -329,7 +330,6 @@ export function Budgets() {
             </FinancialCard>
           </div>
         </div>
-      </div>
     </div>
   );
 }

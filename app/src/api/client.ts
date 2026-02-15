@@ -7,7 +7,26 @@ import {
 } from '../lib/auth';
 import { refresh as refreshApi } from './auth';
 
-const baseURL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || 'http://localhost:8000';
+function resolveApiBaseUrl(): string {
+  const fromRuntime = (globalThis as { __FINMIND_API_URL__?: string }).__FINMIND_API_URL__;
+  if (fromRuntime) return fromRuntime.replace(/\/$/, '');
+
+  const fromProcess = (globalThis as { process?: { env?: Record<string, string | undefined> } })
+    .process?.env?.VITE_API_URL;
+  if (fromProcess) return fromProcess.replace(/\/$/, '');
+
+  try {
+    const metaEnv = Function(
+      'return (typeof import !== "undefined" && import.meta && import.meta.env) ? import.meta.env : {};',
+    )() as Record<string, string | undefined>;
+    if (metaEnv?.VITE_API_URL) return metaEnv.VITE_API_URL.replace(/\/$/, '');
+  } catch {
+    // ignored for non-vite runtime (tests).
+  }
+  return 'http://localhost:8000';
+}
+
+export const baseURL = resolveApiBaseUrl();
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 

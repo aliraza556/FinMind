@@ -71,9 +71,13 @@ export function Reminders() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Reminders</h2>
+    <div className="page-wrap space-y-6">
+      <div className="page-header">
+        <div className="relative flex items-center justify-between gap-3">
+        <div>
+          <h2 className="page-title text-2xl md:text-3xl">Reminders</h2>
+          <p className="page-subtitle">Create, schedule, and dispatch reminders across channels.</p>
+        </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -125,18 +129,19 @@ export function Reminders() {
           </DialogContent>
           </Dialog>
         </div>
+        </div>
       </div>
 
       {loading ? (
-        <div className="card">Loading…</div>
+        <div className="card fade-in-up">Loading…</div>
       ) : (
-        <div className="card">
+        <div className="card fade-in-up">
           {items.length === 0 ? (
             <div className="text-sm text-muted-foreground">No reminders.</div>
           ) : (
             <div className="space-y-2">
               {items.map((r) => (
-                <div key={r.id} className="flex items-center justify-between border-b py-2">
+                <div key={r.id} className="interactive-row flex items-center justify-between border-b py-2">
                   <div>
                     <div className="font-medium">{r.message}</div>
                     <div className="text-xs text-muted-foreground">{new Date(r.send_at).toLocaleString()} • {r.channel} • {r.sent ? 'sent' : 'pending'}</div>

@@ -31,13 +31,22 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { useToast } from '@/hooks/use-toast';
-import { listExpenses, createExpense, updateExpense, deleteExpense, type Expense } from '@/api/expenses';
+import {
+  listExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
+  previewExpenseImport,
+  commitExpenseImport,
+  type Expense,
+  type ImportTransaction,
+} from '@/api/expenses';
 import { listCategories, type Category } from '@/api/categories';
 
 export default function Expenses() {
   const { toast } = useToast();
-  const [items, setItems] = useState<Expense[]>([]); // paged items shown
-  const [allItems, setAllItems] = useState<Expense[]>([]); // all filtered items for client-side paging
+  const [items, setItems] = useState<Expense[]>([]);
+  const [allItems, setAllItems] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,7 +61,12 @@ export default function Expenses() {
   const [categoryId, setCategoryId] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
-  // Filters & pagination
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<ImportTransaction[]>([]);
+  const [previewDuplicates, setPreviewDuplicates] = useState<number>(0);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');
   const [filterCategoryId, setFilterCategoryId] = useState<string>('');
@@ -74,15 +88,11 @@ export default function Expenses() {
         to: to || undefined,
         category_id: filterCategoryId ? Number(filterCategoryId) : undefined,
         search: search || undefined,
-        // We still pass page/page_size for future server support,
-        // but we will slice on client for now.
         page,
         page_size: pageSize,
       });
       setAllItems(data);
-      // Reset page to 1 on new fetch
-      const firstPage = data.slice(0, pageSize);
-      setItems(firstPage);
+      setItems(data.slice(0, pageSize));
       setPage(1);
     } catch (e: any) {
       setError(e?.message || 'Failed to load expenses');
@@ -123,9 +133,23 @@ export default function Expenses() {
     setOpen(true);
   }
 
+  function validateForm() {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      return 'Please enter a valid amount greater than 0';
+    }
+    if (!description.trim()) {
+      return 'Description is required';
+    }
+    if (!date) {
+      return 'Date is required';
+    }
+    return null;
+  }
+
   async function onSubmit() {
-    if (!amount || isNaN(Number(amount))) {
-      setError('Please enter a valid amount');
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
       return;
     }
     setSaving(true);
@@ -149,7 +173,6 @@ export default function Expenses() {
           category_id: categoryId ? Number(categoryId) : null,
         });
         setAllItems((prev) => [created, ...prev]);
-        // If on first page, prepend into view; otherwise keep current slice
         setItems((prev) => (page === 1 ? [created, ...prev].slice(0, pageSize) : prev));
         toast({ title: 'Expense created' });
       }
@@ -167,9 +190,8 @@ export default function Expenses() {
     setSaving(true);
     try {
       await deleteExpense(id);
-      setAllItems((prev) => prev.filter((x) => x.id !== id));
-      // Recompute current page slice after deletion
       const newAll = allItems.filter((x) => x.id !== id);
+      setAllItems(newAll);
       const newTotalPages = Math.max(1, Math.ceil(newAll.length / pageSize));
       const nextPage = Math.min(page, newTotalPages);
       const start = (nextPage - 1) * pageSize;
@@ -185,9 +207,53 @@ export default function Expenses() {
     }
   }
 
+  async function onPreviewImport() {
+    if (!importFile) {
+      setError('Choose a PDF or CSV file before previewing import');
+      return;
+    }
+    setImportLoading(true);
+    setError(null);
+    try {
+      const data = await previewExpenseImport(importFile);
+      setPreview(data.transactions);
+      setPreviewDuplicates(data.duplicates);
+      toast({ title: 'Import preview ready', description: `${data.total} rows parsed.` });
+    } catch (e: any) {
+      setError(e?.message || 'Failed to preview import');
+      toast({ title: 'Failed to preview import', description: e?.message || 'Please try again.' });
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
+  async function onCommitImport() {
+    if (preview.length === 0) {
+      setError('No preview rows to import');
+      return;
+    }
+    setImporting(true);
+    setError(null);
+    try {
+      const res = await commitExpenseImport(preview);
+      toast({
+        title: 'Import complete',
+        description: `${res.inserted} added, ${res.duplicates} duplicates skipped.`,
+      });
+      setPreview([]);
+      setPreviewDuplicates(0);
+      setImportFile(null);
+      await refresh();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to import expenses');
+      toast({ title: 'Failed to import expenses', description: e?.message || 'Please try again.' });
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const categoryMap = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
   const totals = useMemo(() => {
-    // Totals over all filtered items
     const sum = allItems.reduce((acc, e) => acc + Number(e.amount || 0), 0);
     return { sum };
   }, [allItems]);
@@ -203,17 +269,21 @@ export default function Expenses() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Expenses</h2>
+    <div className="page-wrap space-y-5">
+      <div className="page-header">
+      <div className="relative flex items-center justify-between gap-4">
+        <div>
+          <h2 className="page-title text-2xl md:text-3xl">Expenses</h2>
+          <p className="page-subtitle">Track spending manually or import statements from PDF/CSV.</p>
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openCreate}>Add Expense</Button>
+            <Button onClick={openCreate}>Open Full Form</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editing ? 'Edit Expense' : 'New Expense'}</DialogTitle>
-              <DialogDescription>Track your spending with accurate details.</DialogDescription>
+              <DialogDescription>Enter amount, description, date and category.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -243,14 +313,75 @@ export default function Expenses() {
             {error && <div className="error">{error}</div>}
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
-              <Button onClick={onSubmit} disabled={saving || !amount}>{editing ? 'Save' : 'Create'}</Button>
+              <Button onClick={onSubmit} disabled={saving}>{editing ? 'Save' : 'Create'}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
+      </div>
 
-      {/* Filters */}
-      <div className="card p-4 grid md:grid-cols-5 gap-3">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="card card-interactive p-4 space-y-3 fade-in-up">
+          <h3 className="text-base font-semibold">Quick Add</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="q-amount">Amount</Label>
+              <Input id="q-amount" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="q-date">Date</Label>
+              <Input id="q-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="q-description">Description</Label>
+            <Input id="q-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add merchant or note" />
+          </div>
+          <div>
+            <Label htmlFor="q-category">Category</Label>
+            <select id="q-category" className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <option value="">Uncategorized</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <Button onClick={onSubmit} disabled={saving}>Save Expense</Button>
+        </div>
+
+        <div className="card card-interactive p-4 space-y-3 fade-in-up">
+          <h3 className="text-base font-semibold">Import Bank Statement</h3>
+          <p className="text-sm text-muted-foreground">Upload PDF or CSV, review parsed rows, then confirm import.</p>
+          <Input
+            aria-label="statement file"
+            type="file"
+            accept=".pdf,.csv,application/pdf,text/csv"
+            onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+          />
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onPreviewImport} disabled={importLoading || !importFile}>Preview Import</Button>
+            <Button onClick={onCommitImport} disabled={importing || preview.length === 0}>Confirm Import</Button>
+          </div>
+          {preview.length > 0 && (
+            <div className="rounded-md border p-3">
+              <div className="mb-2 text-sm text-muted-foreground">
+                Preview rows: {preview.length} | Detected duplicates: {previewDuplicates}
+              </div>
+              <div className="max-h-40 overflow-y-auto text-sm">
+                {preview.slice(0, 10).map((row, idx) => (
+                  <div key={`${row.date}-${row.amount}-${idx}`} className="grid grid-cols-3 gap-2 border-b py-1">
+                    <span>{row.date}</span>
+                    <span>{row.description}</span>
+                    <span className="text-right">${Number(row.amount).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card p-4 grid md:grid-cols-5 gap-3 fade-in-up">
         <div>
           <Label htmlFor="from">From</Label>
           <Input id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -270,7 +401,7 @@ export default function Expenses() {
         </div>
         <div>
           <Label htmlFor="search">Search</Label>
-          <Input id="search" placeholder="description contains…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input id="search" placeholder="description contains..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="flex items-end gap-2">
           <Button variant="outline" onClick={() => { setFrom(''); setTo(''); setFilterCategoryId(''); setSearch(''); setPage(1); }}>Reset</Button>
@@ -279,9 +410,9 @@ export default function Expenses() {
       </div>
 
       {loading ? (
-        <div className="card">Loading…</div>
+        <div className="card">Loading...</div>
       ) : (
-        <div className="card">
+        <div className="card fade-in-up">
           {items.length === 0 ? (
             <div className="text-sm text-muted-foreground">No expenses yet. Add your first one.</div>
           ) : (
@@ -298,7 +429,7 @@ export default function Expenses() {
                 </thead>
                 <tbody>
                   {items.map((e) => (
-                    <tr key={e.id} className="border-t">
+                    <tr key={e.id} className="border-t transition-colors hover:bg-muted/30">
                       <td className="py-2">{e.date.slice(0, 10)}</td>
                       <td className="py-2">{e.description}</td>
                       <td className="py-2">{e.category_id ? categoryMap.get(e.category_id) : '—'}</td>
@@ -327,7 +458,6 @@ export default function Expenses() {
                       </td>
                     </tr>
                   ))}
-                  {/* Totals Row */}
                   <tr className="border-t bg-muted/30">
                     <td className="py-2" colSpan={3}>Total</td>
                     <td className="py-2 font-semibold">${totals.sum.toFixed(2)}</td>
@@ -337,7 +467,6 @@ export default function Expenses() {
               </table>
             </div>
           )}
-          {/* Pagination Controls */}
           <div className="mt-4 flex items-center justify-between">
             <div className="text-xs text-muted-foreground">Page {page}</div>
             <Pagination>
@@ -360,9 +489,7 @@ export default function Expenses() {
               <select id="ps" className="input" value={pageSize} onChange={(e) => {
                 const size = Number(e.target.value);
                 setPageSize(size);
-                // Reset to page 1 and slice locally
-                const first = allItems.slice(0, size);
-                setItems(first);
+                setItems(allItems.slice(0, size));
                 setPage(1);
               }}>
                 {[10, 20, 50].map((n) => (
@@ -373,6 +500,7 @@ export default function Expenses() {
           </div>
         </div>
       )}
+      {error && <div className="text-sm text-red-600">{error}</div>}
     </div>
   );
 }

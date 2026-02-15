@@ -15,6 +15,9 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dailog';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 
 export default function Categories() {
   const { toast } = useToast();
@@ -29,7 +32,7 @@ export default function Categories() {
 
   useEffect(() => {
     if (!getToken()) {
-      nav('/login', { replace: true });
+      nav('/signin', { replace: true });
       return;
     }
     refresh();
@@ -98,55 +101,53 @@ export default function Categories() {
   }
 
   return (
-    <div>
-      <h2>Categories</h2>
-      <p className="muted">Organize your spending with clear, simple categories.</p>
+    <div className="page-wrap space-y-6">
+      <div className="page-header">
+        <div className="relative">
+          <h2 className="page-title text-2xl md:text-3xl">Categories</h2>
+          <p className="page-subtitle">Create and manage categories to keep expense insights clean and useful.</p>
+        </div>
+      </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="input-row">
-          <input
+      <div className="card card-interactive space-y-3 fade-in-up">
+        <Label htmlFor="new-category">New category</Label>
+        <div className="flex gap-2">
+          <Input
+            id="new-category"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="Add a new category"
+            placeholder="e.g., Groceries"
           />
-          <button className="btn" onClick={onAdd} disabled={saving || !newName.trim()}>Add</button>
+          <Button onClick={onAdd} disabled={saving || !newName.trim()}>Add</Button>
         </div>
       </div>
 
       {error && <div className="error">{error}</div>}
 
       {loading ? (
-        <div className="card">Loading…</div>
+        <div className="card">Loading...</div>
       ) : (
-        <div className="list">
+        <div className="space-y-3">
           {items.map((c) => (
-            <div key={c.id} className="list-item">
+            <div key={c.id} className="card card-interactive flex items-center justify-between gap-3 fade-in-up">
               {editingId === c.id ? (
-                <>
-                  <input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Category name"
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn" onClick={() => onSaveEdit(c.id)} disabled={saving || !editName.trim()}>
-                      Save
-                    </button>
-                    <button className="btn secondary" onClick={() => { setEditingId(null); setEditName(''); }}>
-                      Cancel
-                    </button>
-                  </div>
-                </>
+                <div className="flex w-full items-center gap-2">
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Category name" />
+                  <Button onClick={() => onSaveEdit(c.id)} disabled={saving || !editName.trim()}>Save</Button>
+                  <Button variant="outline" onClick={() => { setEditingId(null); setEditName(''); }}>
+                    Cancel
+                  </Button>
+                </div>
               ) : (
                 <>
-                  <div>{c.name}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="btn secondary" onClick={() => { setEditingId(c.id); setEditName(c.name); }}>
+                  <div className="font-medium text-foreground">{c.name}</div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => { setEditingId(c.id); setEditName(c.name); }}>
                       Edit
-                    </button>
+                    </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <button className="btn secondary">Delete</button>
+                        <Button variant="outline">Delete</Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
@@ -166,9 +167,7 @@ export default function Categories() {
               )}
             </div>
           ))}
-          {items.length === 0 && (
-            <div className="card">No categories yet. Create your first above.</div>
-          )}
+          {items.length === 0 && <div className="card text-sm text-muted-foreground">No categories yet. Create your first one above.</div>}
         </div>
       )}
     </div>

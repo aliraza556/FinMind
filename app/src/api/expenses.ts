@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, baseURL } from './client';
 
 export type Expense = {
   id: number;
@@ -16,6 +16,20 @@ export type ExpenseCreate = {
 };
 
 export type ExpenseUpdate = Partial<ExpenseCreate>;
+
+export type ImportTransaction = {
+  date: string;
+  amount: number;
+  description: string;
+  category_id?: number | null;
+  currency?: string;
+};
+
+export type ImportPreviewResponse = {
+  total: number;
+  duplicates: number;
+  transactions: ImportTransaction[];
+};
 
 export async function listExpenses(params?: {
   from?: string;
@@ -45,4 +59,36 @@ export async function updateExpense(id: number, payload: ExpenseUpdate): Promise
 
 export async function deleteExpense(id: number): Promise<{ message: string }> {
   return api<{ message: string }>(`/expenses/${id}`, { method: 'DELETE' });
+}
+
+export async function previewExpenseImport(file: File): Promise<ImportPreviewResponse> {
+  const token = localStorage.getItem('fm_token');
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${baseURL}/expenses/import/preview`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const payload = await res.json();
+      message = payload?.error || payload?.message || message;
+    } catch {
+      // noop
+    }
+    throw new Error(message);
+  }
+  return res.json() as Promise<ImportPreviewResponse>;
+}
+
+export async function commitExpenseImport(
+  transactions: ImportTransaction[],
+): Promise<{ inserted: number; duplicates: number }> {
+  return api<{ inserted: number; duplicates: number }>('/expenses/import/commit', {
+    method: 'POST',
+    body: { transactions },
+  });
 }

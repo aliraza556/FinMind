@@ -1,44 +1,22 @@
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { 
-  TrendingUp, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Twitter, 
-  Linkedin, 
-  Github,
-  ArrowRight,
-  Shield,
-  Zap,
-  Heart
-} from 'lucide-react';
+import { TrendingUp, Shield, Github, Linkedin, Twitter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const footerLinks = {
   product: [
-    { name: 'Features', href: '#features' },
-    { name: 'Pricing', href: '#pricing' },
-    { name: 'API', href: '#api' },
-    { name: 'Integrations', href: '#integrations' },
+    { name: 'Dashboard', href: '/dashboard' },
+    { name: 'Expenses', href: '/expenses' },
+    { name: 'Bills', href: '/bills' },
+    { name: 'Analytics', href: '/analytics' },
   ],
   company: [
     { name: 'About', href: '/about' },
-    { name: 'Blog', href: '/blog' },
-    { name: 'Careers', href: '/careers' },
-    { name: 'Press', href: '/press' },
-  ],
-  support: [
-    { name: 'Help Center', href: '/help' },
     { name: 'Contact', href: '/contact' },
     { name: 'Status', href: '/status' },
-    { name: 'Community', href: '/community' },
   ],
   legal: [
     { name: 'Privacy', href: '/privacy' },
     { name: 'Terms', href: '/terms' },
     { name: 'Security', href: '/security' },
-    { name: 'Cookies', href: '/cookies' },
   ],
 };
 
@@ -50,211 +28,85 @@ const socialLinks = [
 
 export function Footer() {
   return (
-    <footer className="relative bg-gradient-to-br from-background via-muted/20 to-primary/5 border-t border-border/50">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div 
-          className="w-full h-full"
-          style={{
-            backgroundImage: `
-              radial-gradient(circle at 2px 2px, hsl(var(--primary)) 1px, transparent 0),
-              linear-gradient(45deg, transparent 48%, hsl(var(--border)) 48%, hsl(var(--border)) 52%, transparent 52%)
-            `,
-            backgroundSize: '50px 50px, 100px 100px'
-          }}
-        />
-      </div>
-
-      {/* Newsletter Section */}
-      <div className="relative z-10 border-b border-border/30">
-        <div className="container-financial py-16">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center px-4 py-2 mb-6 bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 rounded-full">
-              <Mail className="w-4 h-4 mr-2 text-primary" />
-              <span className="text-sm font-medium text-primary">Stay Updated</span>
+    <footer className="mt-14 border-t border-border/70 bg-white/70 backdrop-blur-xl">
+      <div className="container-financial py-12">
+        <div className="grid gap-10 md:grid-cols-12">
+          <div className="md:col-span-5">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-hero text-primary-foreground shadow-primary">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-xl font-extrabold">FinMind</div>
+                <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Financial Intelligence Platform</div>
+              </div>
             </div>
-            
-            <h3 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
-              Get the latest financial insights
-            </h3>
-            <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Join 10,000+ users who receive weekly tips, market updates, and exclusive features.
+            <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+              Build healthier money habits with AI-assisted planning, clear analytics, and reliable reminders in one professional workspace.
             </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-              <Input 
-                type="email" 
-                placeholder="Enter your email" 
-                className="flex-1 h-12 bg-background/50 border-border/50 focus:border-primary/50"
-              />
-              <Button size="lg" className="h-12 px-8 group">
-                Subscribe
-                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <Shield className="h-3.5 w-3.5" />
+              Bank-grade security posture
             </div>
-            
-            <p className="text-xs text-muted-foreground mt-4">
-              No spam. Unsubscribe at any time.
-            </p>
+            <div className="mt-5 flex gap-2">
+              {socialLinks.map((social) => (
+                <a
+                  key={social.name}
+                  href={social.href}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-white text-muted-foreground transition hover:border-primary hover:text-primary"
+                  aria-label={social.name}
+                >
+                  <social.icon className="h-4 w-4" />
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Main Footer Content */}
-      <div className="relative z-10">
-        <div className="container-financial py-16">
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-8 lg:gap-12">
-            {/* Brand Section */}
-            <div className="col-span-2">
-              <div className="flex items-center space-x-2 mb-6">
-                <div className="flex items-center justify-center w-10 h-10 bg-gradient-primary rounded-xl shadow-primary">
-                  <TrendingUp className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="text-xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-                  FinMind
-                </span>
-              </div>
-              
-              <p className="text-muted-foreground mb-6 leading-relaxed">
-                Revolutionizing personal finance with AI-powered insights and intelligent automation. 
-                Your journey to financial freedom starts here.
-              </p>
-              
-              {/* Trust Indicators */}
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                  <Shield className="w-4 h-4 text-success" />
-                  <span>Bank-grade security</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                  <Zap className="w-4 h-4 text-primary" />
-                  <span>99.9% uptime guarantee</span>
-                </div>
-              </div>
-              
-              {/* Social Links */}
-              <div className="flex space-x-4 mt-6">
-                {socialLinks.map((social) => (
-                  <a
-                    key={social.name}
-                    href={social.href}
-                    className="flex items-center justify-center w-10 h-10 bg-muted/50 hover:bg-primary hover:text-primary-foreground rounded-lg transition-all duration-200 group"
-                  >
-                    <social.icon className="w-4 h-4" />
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            {/* Product Links */}
+          <div className="grid grid-cols-2 gap-8 md:col-span-7 md:grid-cols-3">
             <div>
-              <h4 className="font-semibold text-foreground mb-4">Product</h4>
-              <ul className="space-y-3">
+              <h4 className="mb-3 text-sm font-semibold">Product</h4>
+              <ul className="space-y-2">
                 {footerLinks.product.map((link) => (
                   <li key={link.name}>
-                    <a
-                      href={link.href}
-                      className="text-muted-foreground hover:text-primary transition-colors duration-200"
-                    >
+                    <a href={link.href} className="text-sm text-muted-foreground transition hover:text-foreground">
                       {link.name}
                     </a>
                   </li>
                 ))}
               </ul>
             </div>
-
-            {/* Company Links */}
             <div>
-              <h4 className="font-semibold text-foreground mb-4">Company</h4>
-              <ul className="space-y-3">
+              <h4 className="mb-3 text-sm font-semibold">Company</h4>
+              <ul className="space-y-2">
                 {footerLinks.company.map((link) => (
                   <li key={link.name}>
-                    <a
-                      href={link.href}
-                      className="text-muted-foreground hover:text-primary transition-colors duration-200"
-                    >
+                    <a href={link.href} className="text-sm text-muted-foreground transition hover:text-foreground">
                       {link.name}
                     </a>
                   </li>
                 ))}
               </ul>
             </div>
-
-            {/* Support Links */}
             <div>
-              <h4 className="font-semibold text-foreground mb-4">Support</h4>
-              <ul className="space-y-3">
-                {footerLinks.support.map((link) => (
-                  <li key={link.name}>
-                    <a
-                      href={link.href}
-                      className="text-muted-foreground hover:text-primary transition-colors duration-200"
-                    >
-                      {link.name}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Legal Links */}
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Legal</h4>
-              <ul className="space-y-3">
+              <h4 className="mb-3 text-sm font-semibold">Legal</h4>
+              <ul className="space-y-2">
                 {footerLinks.legal.map((link) => (
                   <li key={link.name}>
-                    <a
-                      href={link.href}
-                      className="text-muted-foreground hover:text-primary transition-colors duration-200"
-                    >
+                    <a href={link.href} className="text-sm text-muted-foreground transition hover:text-foreground">
                       {link.name}
                     </a>
                   </li>
                 ))}
               </ul>
-            </div>
-          </div>
-
-          {/* Contact Information */}
-          <div className="mt-12 pt-8 border-t border-border/30">
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-                <Mail className="w-4 h-4 text-primary" />
-                <span>support@finmind.com</span>
-              </div>
-              <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-                <Phone className="w-4 h-4 text-primary" />
-                <span>+1 (555) 123-4567</span>
-              </div>
-              <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4 text-primary" />
-                <span>San Francisco, CA</span>
-              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Bottom Bar */}
-      <div className="relative z-10 border-t border-border/30 bg-muted/20">
-        <div className="container-financial py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-              <span>© 2024 FinMind. All rights reserved.</span>
-              <span className="hidden md:inline">•</span>
-              <span className="hidden md:inline">Built with</span>
-              <Heart className="w-4 h-4 text-destructive hidden md:inline" />
-              <span className="hidden md:inline">in San Francisco</span>
-            </div>
-            
-            <div className="flex items-center space-x-6">
-              <Link to="/register" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                Sign Up
-              </Link>
-              <Link to="/signin" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                Sign In
-              </Link>
-            </div>
+        <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-border/60 pt-5 text-xs text-muted-foreground md:flex-row md:items-center">
+          <p>© 2026 FinMind. All rights reserved.</p>
+          <div className="flex gap-4">
+            <Link to="/register" className="hover:text-foreground">Create account</Link>
+            <Link to="/signin" className="hover:text-foreground">Sign in</Link>
           </div>
         </div>
       </div>

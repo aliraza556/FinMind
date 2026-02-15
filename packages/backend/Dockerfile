@@ -19,7 +19,6 @@ RUN pip install -r requirements.txt
 # Copy backend source
 COPY app /app/app
 COPY wsgi.py /app/wsgi.py
-COPY tests /app/tests
 
 EXPOSE 8000
 CMD ["gunicorn", "-w", "2", "-k", "gthread", "-b", "0.0.0.0:8000", "wsgi:app"]

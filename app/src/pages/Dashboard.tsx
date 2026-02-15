@@ -54,19 +54,17 @@ const upcomingBills = [
 
 export function Dashboard() {
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container-financial py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+    <div className="page-wrap">
+      {/* Header */}
+      <div className="page-header">
+        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              Financial Dashboard
-            </h1>
-            <p className="text-muted-foreground">
+            <h1 className="page-title">Financial Dashboard</h1>
+            <p className="page-subtitle">
               Welcome back! Here's your financial overview for today.
             </p>
           </div>
-          <div className="flex gap-3 mt-4 sm:mt-0">
+          <div className="flex gap-3">
             <Button variant="outline" size="sm">
               <Calendar className="w-4 h-4" />
               This Month
@@ -77,11 +75,12 @@ export function Dashboard() {
             </Button>
           </div>
         </div>
+      </div>
 
         {/* Summary Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
           {summaryCards.map((card, index) => (
-            <FinancialCard key={index} variant="financial" className="group">
+            <FinancialCard key={index} variant="financial" className="group card-interactive fade-in-up">
               <FinancialCardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <FinancialCardTitle className="text-sm font-medium text-muted-foreground">
@@ -91,7 +90,7 @@ export function Dashboard() {
                 </div>
               </FinancialCardHeader>
               <FinancialCardContent>
-                <div className="text-2xl font-bold text-foreground mb-1">
+                <div className="metric-value text-foreground mb-1">
                   {card.amount}
                 </div>
                 <div className="flex items-center text-sm">
@@ -112,10 +111,10 @@ export function Dashboard() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Recent Transactions */}
           <div className="lg:col-span-2">
-            <FinancialCard variant="financial">
+            <FinancialCard variant="financial" className="fade-in-up">
               <FinancialCardHeader>
                 <div className="flex items-center justify-between">
-                  <FinancialCardTitle className="text-lg">Recent Transactions</FinancialCardTitle>
+                  <FinancialCardTitle className="section-title">Recent Transactions</FinancialCardTitle>
                   <Button variant="ghost" size="sm">View All</Button>
                 </div>
                 <FinancialCardDescription>
@@ -125,7 +124,7 @@ export function Dashboard() {
               <FinancialCardContent>
                 <div className="space-y-4">
                   {recentTransactions.map((transaction) => (
-                    <div key={transaction.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div key={transaction.id} className="interactive-row flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                           transaction.type === 'income' 
@@ -161,10 +160,10 @@ export function Dashboard() {
 
           {/* Upcoming Bills */}
           <div>
-            <FinancialCard variant="financial">
+            <FinancialCard variant="financial" className="fade-in-up">
               <FinancialCardHeader>
                 <div className="flex items-center justify-between">
-                  <FinancialCardTitle className="text-lg">Upcoming Bills</FinancialCardTitle>
+                  <FinancialCardTitle className="section-title">Upcoming Bills</FinancialCardTitle>
                   <Button variant="ghost" size="sm">Manage</Button>
                 </div>
                 <FinancialCardDescription>
@@ -174,7 +173,7 @@ export function Dashboard() {
               <FinancialCardContent>
                 <div className="space-y-3">
                   {upcomingBills.map((bill) => (
-                    <div key={bill.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div key={bill.id} className="interactive-row flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                           bill.status === 'overdue' 
@@ -212,7 +211,6 @@ export function Dashboard() {
             </FinancialCard>
           </div>
         </div>
-      </div>
     </div>
   );
 }

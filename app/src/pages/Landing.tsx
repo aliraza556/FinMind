@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { FinancialCard, FinancialCardContent, FinancialCardDescription, FinancialCardHeader, FinancialCardTitle } from '@/components/ui/financial-card';
 import { ArrowRight, BarChart3, Bell, Brain, DollarSign, PieChart, Shield, Smartphone, TrendingUp, Users, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -584,6 +585,24 @@ export function Landing() {
       </section>
 
       {/* CTA Section */}
+      <section className="section-padding relative z-10">
+        <div className="container-financial">
+          <div className="subscribe-panel">
+            <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Subscribe</p>
+                <h3 className="mt-2 text-2xl font-extrabold text-foreground">Get weekly financial intelligence in your inbox</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Only one email per week. No spam, no noise, just practical money moves.</p>
+              </div>
+              <div className="flex w-full max-w-md gap-2">
+                <Input type="email" placeholder="you@company.com" className="bg-white" />
+                <Button variant="hero">Subscribe</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="section-padding bg-gradient-to-r from-secondary to-secondary-hover relative z-10">
         <div className="container-financial text-center relative">
           {/* CTA Background Elements */}

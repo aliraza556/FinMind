@@ -48,9 +48,9 @@ export function SignIn() {
   const { toast } = useToast();
 
   return (
-    <div className="min-h-screen flex">
+    <div className="auth-shell auth-screen flex">
       {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8 relative overflow-hidden">
+      <div className="auth-pane">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-5">
           <div 
@@ -66,10 +66,10 @@ export function SignIn() {
           />
         </div>
 
-        <div className="w-full max-w-md relative z-10">
+        <div className="auth-content">
           {/* Header */}
-          <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center space-x-2 mb-8">
+          <div className="text-center mb-5 pt-3 md:pt-4">
+            <Link to="/" className="inline-flex items-center space-x-2 mb-4">
               <div className="flex items-center justify-center w-12 h-12 bg-gradient-primary rounded-xl shadow-primary">
                 <TrendingUp className="w-6 h-6 text-primary-foreground" />
               </div>
@@ -78,21 +78,21 @@ export function SignIn() {
               </span>
             </Link>
             
-            <h1 className="text-3xl font-bold text-foreground mb-2">
+            <h1 className="text-2xl font-bold text-foreground mb-1">
               Welcome back
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Sign in to your account to continue your financial journey
             </p>
           </div>
 
           {/* Social Login */}
-          <div className="space-y-3 mb-6">
+          <div className="auth-social">
             {socialProviders.map((provider) => (
               <Button
                 key={provider.name}
                 variant="outline"
-                className="w-full h-12 justify-start space-x-3"
+                className="w-full h-10 justify-start space-x-3"
               >
                 <provider.icon className="w-5 h-5" />
                 <span>{provider.description}</span>
@@ -100,7 +100,7 @@ export function SignIn() {
             ))}
           </div>
 
-          <div className="relative mb-6">
+          <div className="auth-divider">
             <Separator />
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="bg-background px-4 text-sm text-muted-foreground">
@@ -110,10 +110,10 @@ export function SignIn() {
           </div>
 
           {/* Form */}
-          <FinancialCard variant="financial" className="border-2">
-            <FinancialCardContent className="p-6">
+          <FinancialCard variant="financial" className="auth-card">
+            <FinancialCardContent className="p-5">
               <form
-                className="space-y-6"
+                className="space-y-4"
                 onSubmit={async (e) => {
                   e.preventDefault();
                   setError(null);
@@ -150,7 +150,7 @@ export function SignIn() {
                       id="email"
                       type="email"
                       placeholder="you@example.com"
-                      className="pl-10 h-12"
+                      className="pl-10 h-10"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -168,7 +168,7 @@ export function SignIn() {
                       id="password"
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Enter your password"
-                      className="pl-10 pr-10 h-12"
+                      className="pl-10 pr-10 h-10"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
@@ -201,7 +201,7 @@ export function SignIn() {
                   </div>
                 )}
 
-                <Button className="w-full h-12 group" size="lg" type="submit" disabled={loading}>
+                <Button className="w-full h-10 group" type="submit" disabled={loading}>
                   {loading ? 'Signing in…' : 'Sign in to your account'}
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
@@ -210,7 +210,7 @@ export function SignIn() {
           </FinancialCard>
 
           {/* Footer */}
-          <div className="text-center mt-6">
+          <div className="auth-footer">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{' '}
               <Link 
@@ -222,15 +222,11 @@ export function SignIn() {
             </p>
           </div>
 
-          {/* Trust Indicators */}
-          <div className="grid grid-cols-3 gap-4 mt-8">
+          <div className="mt-3 hidden xl:flex items-center justify-center gap-2 text-xs text-muted-foreground">
             {features.map((feature, index) => (
-              <div key={index} className="text-center">
-                <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-lg mb-2 mx-auto">
-                  <feature.icon className="w-5 h-5 text-primary" />
-                </div>
-                <h4 className="text-xs font-medium text-foreground">{feature.title}</h4>
-                <p className="text-xs text-muted-foreground">{feature.description}</p>
+              <div key={index} className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-1">
+                <feature.icon className="h-3.5 w-3.5 text-primary" />
+                <span>{feature.title}</span>
               </div>
             ))}
           </div>
@@ -238,53 +234,61 @@ export function SignIn() {
       </div>
 
       {/* Right Side - Visual */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-primary via-primary-hover to-accent relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div 
-            className="w-full h-full"
-            style={{
-              backgroundImage: `
-                radial-gradient(circle at 50% 50%, white 2px, transparent 2px),
-                linear-gradient(45deg, transparent 48%, white 48%, white 52%, transparent 52%)
-              `,
-              backgroundSize: '100px 100px, 200px 200px'
-            }}
-          />
-        </div>
+      <div className="hidden xl:flex flex-1 bg-gradient-to-br from-secondary via-primary to-accent relative overflow-hidden">
+        <div className="absolute inset-0 opacity-20" />
+        <div className="absolute -top-28 left-8 h-72 w-72 rounded-full bg-white/20 blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
 
-        <div className="flex items-center justify-center p-12 relative z-10">
-          <div className="text-center text-white max-w-lg">
-            <div className="text-6xl font-bold mb-6">
-              $2.4M+
+        <div className="flex items-center justify-center p-8 relative z-10">
+          <div className="max-w-lg text-white">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1 text-xs font-semibold tracking-wide">
+              <span className="h-2 w-2 rounded-full bg-emerald-300" />
+              SECURE FINANCE WORKSPACE
             </div>
-            <h2 className="text-3xl font-bold mb-4">
-              Managed for our users
+
+            <h2 className="text-4xl font-extrabold leading-tight">
+              Welcome back to your
+              <span className="block text-white/85">financial command center.</span>
             </h2>
-            <p className="text-xl text-white/80 mb-8">
-              Join thousands of users who trust FinMind to manage their financial future with AI-powered insights and intelligent automation.
+
+            <p className="mt-4 text-base text-white/85">
+              Continue with live budgets, bill tracking, and AI-led spend insights designed to keep your money decisions sharp.
             </p>
-            
-            {/* Testimonial */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-              <p className="text-white/90 italic mb-4">
-                "FinMind has completely transformed how I manage my finances. The AI insights are incredible!"
-              </p>
-              <div className="flex items-center justify-center space-x-3">
-                <div className="w-10 h-10 bg-white/20 rounded-full"></div>
-                <div>
-                  <div className="font-medium text-white">Sarah Johnson</div>
-                  <div className="text-sm text-white/70">Software Engineer</div>
+
+            <div className="mt-6 grid grid-cols-3 gap-3">
+              <div className="rounded-xl border border-white/25 bg-white/15 p-3 text-center backdrop-blur-sm">
+                <div className="text-2xl font-extrabold">$2.4M+</div>
+                <div className="text-xs text-white/80">Managed spend</div>
+              </div>
+              <div className="rounded-xl border border-white/25 bg-white/15 p-3 text-center backdrop-blur-sm">
+                <div className="text-2xl font-extrabold">99.9%</div>
+                <div className="text-xs text-white/80">Reminder reliability</div>
+              </div>
+              <div className="rounded-xl border border-white/25 bg-white/15 p-3 text-center backdrop-blur-sm">
+                <div className="text-2xl font-extrabold">4.9★</div>
+                <div className="text-xs text-white/80">User satisfaction</div>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-white/25 bg-white/12 p-5 backdrop-blur-sm">
+              <div className="mb-3 text-sm font-semibold text-white/90">Today’s momentum</div>
+              <div className="space-y-2 text-sm text-white/85">
+                <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
+                  <span>Expenses categorized</span>
+                  <span className="font-bold">93%</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
+                  <span>Budget adherence</span>
+                  <span className="font-bold">On Track</span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
+                  <span>Next bill risk</span>
+                  <span className="font-bold">Low</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Floating Elements */}
-        <div className="absolute top-20 left-20 w-20 h-20 bg-white/10 rounded-full animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-32 h-32 bg-white/10 rounded-lg rotate-45"></div>
-        <div className="absolute top-1/2 right-20 w-16 h-16 bg-white/10 rounded-xl rotate-12"></div>
       </div>
     </div>
   );

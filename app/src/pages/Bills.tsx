@@ -186,8 +186,7 @@ export function Bills() {
   const autoPaidBills = upcomingBills.filter(bill => bill.autopay);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container-financial py-8">
+    <div className="page-wrap">
         {/* Live Bills (wired to backend) */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -228,7 +227,7 @@ export function Bills() {
               </DialogContent>
             </Dialog>
           </div>
-          <div className="card">
+          <div className="card fade-in-up">
             {loading ? (
               <div>Loading…</div>
             ) : items.length === 0 ? (
@@ -236,7 +235,7 @@ export function Bills() {
             ) : (
               <div className="space-y-2">
                 {items.map((b) => (
-                  <div key={b.id} className="flex items-center justify-between border-b py-2">
+                  <div key={b.id} className="interactive-row flex items-center justify-between border-b py-2">
                     <div>
                       <div className="font-medium">{b.name}</div>
                       <div className="text-xs text-muted-foreground">Due {b.next_due_date || '—'} • ${Number(b.amount || 0).toFixed(2)}</div>
@@ -278,16 +277,15 @@ export function Bills() {
           </div>
         </div>
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+        <div className="page-header">
+          <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              Bill Management
-            </h1>
-            <p className="text-muted-foreground">
+            <h1 className="page-title">Bill Management</h1>
+            <p className="page-subtitle">
               Stay on top of your bills and never miss a payment
             </p>
           </div>
-          <div className="flex gap-3 mt-4 sm:mt-0">
+          <div className="flex gap-3">
             <Button variant="outline" size="sm" asChild>
               <Link to="/reminders">
                 <Bell className="w-4 h-4" />
@@ -299,10 +297,11 @@ export function Bills() {
               Add Bill
             </Button>
           </div>
+          </div>
         </div>
 
         {/* Bills Overview */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
+        <div className="grid gap-4 md:grid-cols-4 mb-8">
           <FinancialCard variant="financial">
             <FinancialCardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -313,7 +312,7 @@ export function Bills() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">
+              <div className="metric-value text-foreground mb-1">
                 ${totalUpcoming.toLocaleString()}
               </div>
               <div className="text-sm text-muted-foreground">
@@ -332,7 +331,7 @@ export function Bills() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold mb-1">
+              <div className="metric-value mb-1">
                 {overdueBills.length}
               </div>
               <div className="text-sm opacity-80">
@@ -351,7 +350,7 @@ export function Bills() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">
+              <div className="metric-value text-foreground mb-1">
                 {autoPaidBills.length}
               </div>
               <div className="text-sm text-muted-foreground">
@@ -370,7 +369,7 @@ export function Bills() {
               </div>
             </FinancialCardHeader>
             <FinancialCardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">
+              <div className="metric-value text-foreground mb-1">
                 ${(totalUpcoming * 0.92).toLocaleString()}
               </div>
               <div className="text-sm text-muted-foreground">
@@ -381,13 +380,13 @@ export function Bills() {
         </div>
 
         {/* Main Content */}
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid gap-6 lg:grid-cols-3">
           {/* Upcoming Bills */}
           <div className="lg:col-span-2">
-            <FinancialCard variant="financial">
+            <FinancialCard variant="financial" className="fade-in-up">
               <FinancialCardHeader>
                 <div className="flex items-center justify-between">
-                  <FinancialCardTitle className="text-lg">Upcoming Bills</FinancialCardTitle>
+                  <FinancialCardTitle className="section-title">Upcoming Bills</FinancialCardTitle>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm">
                       <Filter className="w-4 h-4" />
@@ -404,7 +403,7 @@ export function Bills() {
               <FinancialCardContent>
                 <div className="space-y-4">
                   {upcomingBills.map((bill) => (
-                    <div key={bill.id} className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                    <div key={bill.id} className="interactive-row flex items-center justify-between p-4 rounded-lg border border-border">
                       <div className="flex items-center space-x-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                           bill.status === 'overdue' 
@@ -463,9 +462,9 @@ export function Bills() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Categories */}
-            <FinancialCard variant="financial">
+            <FinancialCard variant="financial" className="fade-in-up">
               <FinancialCardHeader>
-                <FinancialCardTitle className="text-lg">Categories</FinancialCardTitle>
+                <FinancialCardTitle className="section-title">Categories</FinancialCardTitle>
                 <FinancialCardDescription>
                   Bills by category
                 </FinancialCardDescription>
@@ -473,7 +472,7 @@ export function Bills() {
               <FinancialCardContent>
                 <div className="space-y-3">
                   {billCategories.map((category, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div key={index} className="interactive-row flex items-center justify-between p-3 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <div className={`w-4 h-4 rounded-full ${category.color}`}></div>
                         <div>
@@ -495,9 +494,9 @@ export function Bills() {
             </FinancialCard>
 
             {/* Recent Payments */}
-            <FinancialCard variant="financial">
+            <FinancialCard variant="financial" className="fade-in-up">
               <FinancialCardHeader>
-                <FinancialCardTitle className="text-lg">Recent Payments</FinancialCardTitle>
+                <FinancialCardTitle className="section-title">Recent Payments</FinancialCardTitle>
                 <FinancialCardDescription>
                   Recently paid bills
                 </FinancialCardDescription>
@@ -505,7 +504,7 @@ export function Bills() {
               <FinancialCardContent>
                 <div className="space-y-3">
                   {recentPayments.map((payment) => (
-                    <div key={payment.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div key={payment.id} className="interactive-row flex items-center justify-between p-3 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 rounded-lg bg-success-light text-success flex items-center justify-center">
                           <CheckCircle className="w-4 h-4" />
@@ -534,7 +533,6 @@ export function Bills() {
             </FinancialCard>
           </div>
         </div>
-      </div>
     </div>
   );
 }

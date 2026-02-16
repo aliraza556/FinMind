@@ -48,9 +48,17 @@ def create_app(settings: Settings | None = None) -> Flask:
     # Blueprint routes
     register_routes(app)
 
+    # Backward-compatible schema patch for existing databases.
+    with app.app_context():
+        _ensure_schema_compatibility(app)
+
     @app.get("/health")
     def health():
         return jsonify(status="ok"), 200
+
+    @app.errorhandler(500)
+    def internal_error(_error):
+        return jsonify(error="internal server error"), 500
 
     @app.cli.command("init-db")
     def init_db():
@@ -69,3 +77,26 @@ def create_app(settings: Settings | None = None) -> Flask:
                 conn.close()
 
     return app
+
+
+def _ensure_schema_compatibility(app: Flask) -> None:
+    """Apply minimal compatibility ALTERs for existing deployments."""
+    if db.engine.dialect.name != "postgresql":
+        return
+    conn = db.engine.raw_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS preferred_currency VARCHAR(10) NOT NULL DEFAULT 'INR'
+            """
+        )
+        conn.commit()
+    except Exception:
+        app.logger.exception(
+            "Schema compatibility patch failed for users.preferred_currency"
+        )
+        conn.rollback()
+    finally:
+        conn.close()

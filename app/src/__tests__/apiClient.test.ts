@@ -69,4 +69,20 @@ describe('api client', () => {
 
     await expect(api('/bad')).rejects.toThrow('nope');
   });
+
+  it('hides raw HTML error pages with a friendly server message', async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce(
+      new Response(
+        '<!doctype html><html><body><h1>500 Internal Server Error</h1></body></html>',
+        {
+          status: 500,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        },
+      ),
+    );
+
+    await expect(api('/auth/login')).rejects.toThrow(
+      'Server error. Please try again in a minute.',
+    );
+  });
 });

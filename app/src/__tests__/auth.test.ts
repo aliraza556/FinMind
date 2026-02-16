@@ -1,4 +1,16 @@
-import { getToken, setToken, clearToken, getRefreshToken, setRefreshToken, clearRefreshToken, TOKEN_KEY, REFRESH_TOKEN_KEY } from '@/lib/auth';
+import {
+  getToken,
+  setToken,
+  clearToken,
+  getRefreshToken,
+  setRefreshToken,
+  clearRefreshToken,
+  getCurrency,
+  setCurrency,
+  TOKEN_KEY,
+  REFRESH_TOKEN_KEY,
+  CURRENCY_KEY,
+} from '@/lib/auth';
 
 describe('auth token helpers', () => {
   beforeEach(() => {
@@ -33,5 +45,15 @@ describe('auth token helpers', () => {
     clearRefreshToken();
     expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBeNull();
     expect(window.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'auth_changed' }));
+  });
+
+  it('sets and gets preferred currency, dispatches currency_changed', () => {
+    expect(getCurrency()).toBe('INR');
+    setCurrency('INR');
+    expect(localStorage.getItem(CURRENCY_KEY)).toBe('INR');
+    expect(getCurrency()).toBe('INR');
+    expect(window.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'currency_changed' }),
+    );
   });
 });

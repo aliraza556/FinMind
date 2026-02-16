@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, type FormEvent } from 'react';
-import { register, login } from '@/api/auth';
-import { setToken, setRefreshToken } from '@/lib/auth';
+import { register, login, me } from '@/api/auth';
+import { setToken, setRefreshToken, setCurrency } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
 
 const socialProviders = [
@@ -58,6 +58,12 @@ export function Register() {
       const auth = await login(email.trim(), password);
       setToken(auth.access_token);
       if (auth.refresh_token) setRefreshToken(auth.refresh_token);
+      try {
+        const profile = await me();
+        setCurrency(profile.preferred_currency || 'INR');
+      } catch {
+        // Keep default local currency when profile fetch is unavailable.
+      }
       toast({ title: 'Account created', description: 'Welcome to FinMind.' });
       nav('/dashboard', { replace: true });
     } catch (err: unknown) {

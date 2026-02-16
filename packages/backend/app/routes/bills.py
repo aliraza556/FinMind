@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
-from ..models import Bill, BillCadence
+from ..models import Bill, BillCadence, User
 from ..services.cache import cache_delete_patterns
 import logging
 
@@ -42,12 +42,13 @@ def list_bills():
 @jwt_required()
 def create_bill():
     uid = int(get_jwt_identity())
+    user = db.session.get(User, uid)
     data = request.get_json() or {}
     b = Bill(
         user_id=uid,
         name=data["name"],
         amount=data["amount"],
-        currency=data.get("currency", "USD"),
+        currency=data.get("currency") or (user.preferred_currency if user else "INR"),
         next_due_date=date.fromisoformat(data["next_due_date"]),
         cadence=BillCadence(data.get("cadence", "MONTHLY")),
         channel_whatsapp=bool(data.get("channel_whatsapp", False)),

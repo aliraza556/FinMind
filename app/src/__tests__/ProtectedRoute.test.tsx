@@ -5,8 +5,9 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
 jest.mock('@/api/auth', () => ({
   refresh: jest.fn(),
+  me: jest.fn(),
 }));
-import { refresh } from '@/api/auth';
+import { me, refresh } from '@/api/auth';
 
 function ShowLocation() {
   const loc = useLocation();
@@ -16,9 +17,14 @@ function ShowLocation() {
 describe('ProtectedRoute', () => {
   beforeEach(() => {
     localStorage.clear();
+    (me as jest.Mock).mockResolvedValue({
+      id: 1,
+      email: 'test@example.com',
+      preferred_currency: 'USD',
+    });
   });
 
-  it('redirects to /signin when no token', () => {
+  it('redirects to /signin when no token', async () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Routes>
@@ -35,10 +41,12 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/signin');
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent('/signin'),
+    );
   });
 
-  it('renders children when token exists', () => {
+  it('renders children when token exists', async () => {
     localStorage.setItem('fm_token', 'token');
 
     render(
@@ -56,7 +64,7 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByTestId('secret')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('secret')).toBeInTheDocument());
   });
 
   it('refreshes and renders children when only refresh token exists', async () => {

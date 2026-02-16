@@ -21,9 +21,10 @@ import {
 } from 'lucide-react';
 import { getDashboardSummary, type DashboardSummary } from '@/api/dashboard';
 import { useNavigate } from 'react-router-dom';
+import { formatMoney } from '@/lib/currency';
 
-function currency(n: number) {
-  return `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function currency(n: number, code?: string) {
+  return formatMoney(Number(n || 0), code);
 }
 
 export function Dashboard() {
@@ -196,7 +197,8 @@ export function Dashboard() {
                           </div>
                         </div>
                         <div className={`font-semibold ${isIncome ? 'text-success' : 'text-foreground'}`}>
-                          {isIncome ? '+' : '-'}{currency(Math.abs(transaction.amount))}
+                          {isIncome ? '+' : '-'}
+                          {currency(Math.abs(transaction.amount), transaction.currency)}
                         </div>
                       </div>
                     );
@@ -232,7 +234,9 @@ export function Dashboard() {
                           <div className="text-xs text-muted-foreground">Due {new Date(bill.next_due_date).toLocaleDateString()}</div>
                         </div>
                       </div>
-                      <div className="text-sm font-semibold text-foreground">{currency(bill.amount)}</div>
+                      <div className="text-sm font-semibold text-foreground">
+                        {currency(bill.amount, bill.currency)}
+                      </div>
                     </div>
                   ))}
                 </div>

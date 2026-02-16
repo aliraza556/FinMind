@@ -19,8 +19,8 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { login } from '@/api/auth';
-import { setToken, setRefreshToken } from '@/lib/auth';
+import { login, me } from '@/api/auth';
+import { setToken, setRefreshToken, setCurrency } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
 
 const socialProviders = [
@@ -122,6 +122,12 @@ export function SignIn() {
                     const res = await login(email.trim(), password);
                     setToken(res.access_token);
                     if (res.refresh_token) setRefreshToken(res.refresh_token);
+                    try {
+                      const profile = await me();
+                      setCurrency(profile.preferred_currency || 'INR');
+                    } catch {
+                      // Keep existing local currency if profile fetch fails.
+                    }
                     toast({
                       title: 'Welcome back 👋',
                       description: 'You have successfully signed in.',

@@ -74,13 +74,22 @@ export async function api<T = unknown>(
   if (!res.ok) {
     const text = await res.text();
     let msg = text;
+    const contentType = res.headers.get('content-type') || '';
     try {
       const obj = JSON.parse(text) as { error?: string; message?: string };
       msg = (obj && (obj.error || obj.message)) || JSON.stringify(obj);
     } catch {
-      msg = text;
-      console.error(msg);
+      if (contentType.includes('text/html') || /<!doctype html>/i.test(text)) {
+        if (res.status >= 500) {
+          msg = 'Server error. Please try again in a minute.';
+        } else {
+          msg = 'Request failed. Please try again.';
+        }
+      } else {
+        msg = text || `HTTP ${res.status}`;
+      }
     }
+    if (!msg) msg = `HTTP ${res.status}`;
     throw new Error(msg || `HTTP ${res.status}`);
   }
 

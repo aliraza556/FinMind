@@ -8,6 +8,7 @@ import { listBills, createBill, markBillPaid, deleteBill, type Bill } from '@/ap
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dailog';
 import { Link } from 'react-router-dom';
+import { formatMoney } from '@/lib/currency';
 
 const upcomingBills = [
   {
@@ -160,8 +161,8 @@ export function Bills() {
     if (!name.trim() || !amount) return;
     setSaving(true);
     try {
-      const created = await createBill({ name: name.trim(), amount: Number(amount), next_due_date: due });
-      setItems((prev) => [created, ...prev]);
+      await createBill({ name: name.trim(), amount: Number(amount), next_due_date: due });
+      await refresh();
       setOpen(false);
       setName('');
       setAmount('');
@@ -243,7 +244,9 @@ export function Bills() {
                   <div key={b.id} className="interactive-row flex items-center justify-between border-b py-2">
                     <div>
                       <div className="font-medium">{b.name}</div>
-                      <div className="text-xs text-muted-foreground">Due {b.next_due_date || '—'} • ${Number(b.amount || 0).toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Due {b.next_due_date || '—'} • {formatMoney(Number(b.amount || 0), b.currency)}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => onMarkPaid(b.id)}>Mark Paid</Button>

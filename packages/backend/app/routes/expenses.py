@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
-from ..models import Expense
+from ..models import Expense, User
 from ..services.cache import cache_delete_patterns, monthly_summary_key
 from ..services import expense_import
 import logging
@@ -55,6 +55,7 @@ def list_expenses():
 @jwt_required()
 def create_expense():
     uid = int(get_jwt_identity())
+    user = db.session.get(User, uid)
     data = request.get_json() or {}
     amount = _parse_amount(data.get("amount"))
     if amount is None:
@@ -66,7 +67,7 @@ def create_expense():
     e = Expense(
         user_id=uid,
         amount=amount,
-        currency=data.get("currency", "USD"),
+        currency=(data.get("currency") or (user.preferred_currency if user else "INR")),
         expense_type=str(data.get("expense_type") or "EXPENSE").upper(),
         category_id=data.get("category_id"),
         notes=description,
@@ -163,6 +164,7 @@ def import_preview():
 @jwt_required()
 def import_commit():
     uid = int(get_jwt_identity())
+    user = db.session.get(User, uid)
     data = request.get_json() or {}
     rows = data.get("transactions") or []
     if not isinstance(rows, list) or not rows:
@@ -178,7 +180,7 @@ def import_commit():
         expense = Expense(
             user_id=uid,
             amount=t["amount"],
-            currency=t.get("currency", "USD"),
+            currency=t.get("currency") or (user.preferred_currency if user else "INR"),
             expense_type=str(t.get("expense_type") or "EXPENSE").upper(),
             category_id=t.get("category_id"),
             notes=t["description"],

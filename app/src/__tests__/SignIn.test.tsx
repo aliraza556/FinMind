@@ -48,19 +48,26 @@ jest.mock('react-router-dom', () => {
 // Mock auth API
 jest.mock('@/api/auth', () => ({
   login: jest.fn(),
+  me: jest.fn(),
 }));
 
 // Mock token setters to avoid touching localStorage in this test
 jest.mock('@/lib/auth', () => ({
   setToken: jest.fn(),
   setRefreshToken: jest.fn(),
+  setCurrency: jest.fn(),
 }));
 
-import { login } from '@/api/auth';
+import { login, me } from '@/api/auth';
 
 describe('SignIn page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (me as jest.Mock).mockResolvedValue({
+      id: 1,
+      email: 'demo@finmind.local',
+      preferred_currency: 'USD',
+    });
   });
 
   it('shows success toast and navigates on successful login', async () => {

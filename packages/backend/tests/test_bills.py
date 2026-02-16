@@ -34,7 +34,9 @@ def test_bills_crud_and_mark_paid(client, auth_header):
 
 
 def test_bill_create_defaults_to_user_preferred_currency(client, auth_header):
-    r = client.patch("/auth/me", json={"preferred_currency": "INR"}, headers=auth_header)
+    r = client.patch(
+        "/auth/me", json={"preferred_currency": "INR"}, headers=auth_header
+    )
     assert r.status_code == 200
 
     payload = {

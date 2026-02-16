@@ -60,7 +60,9 @@ def test_expenses_crud_filters_and_canonical_fields(client, auth_header):
 
 
 def test_expense_create_defaults_to_user_preferred_currency(client, auth_header):
-    r = client.patch("/auth/me", json={"preferred_currency": "INR"}, headers=auth_header)
+    r = client.patch(
+        "/auth/me", json={"preferred_currency": "INR"}, headers=auth_header
+    )
     assert r.status_code == 200
 
     payload = {

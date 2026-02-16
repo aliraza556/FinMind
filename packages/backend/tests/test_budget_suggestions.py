@@ -6,9 +6,17 @@ Covers:
 - Per-category suggestions with trends
 - Cache behavior
 - Edge cases (no data, single month, etc.)
+- Gemini AI integration (mocked)
+- OpenAI integration (mocked)
+- AI fallback chain (Gemini -> OpenAI -> heuristic)
+- JSON parsing from AI responses
+- FinMind persona validation
 """
 
+import json
 from datetime import date
+from unittest.mock import MagicMock, patch
+
 from dateutil.relativedelta import relativedelta
 
 
@@ -343,3 +351,477 @@ class TestBreakdownLogic:
         assert data["breakdown"]["needs"] == round(total * 0.5, 2)
         assert data["breakdown"]["wants"] == round(total * 0.3, 2)
         assert data["breakdown"]["savings"] == round(total * 0.2, 2)
+
+
+# ---------------------------------------------------------------------------
+# Mock AI response helpers
+# ---------------------------------------------------------------------------
+
+MOCK_GEMINI_RESPONSE = {
+    "candidates": [
+        {
+            "content": {
+                "parts": [
+                    {
+                        "text": json.dumps(
+                            {
+                                "suggested_total": 1200.0,
+                                "breakdown": {
+                                    "needs": 600.0,
+                                    "wants": 360.0,
+                                    "savings": 240.0,
+                                },
+                                "category_suggestions": [
+                                    {
+                                        "category_name": "Food",
+                                        "suggested_limit": 400.0,
+                                        "reason": "Spending trend is stable",
+                                    }
+                                ],
+                                "insights": [
+                                    "Food spending is consistent"
+                                ],
+                                "tips": [
+                                    "Meal-prep to cut grocery spend 15%",
+                                    "Set a weekly dining-out cap of 50",
+                                ],
+                            }
+                        )
+                    }
+                ]
+            }
+        }
+    ]
+}
+
+
+MOCK_OPENAI_RESPONSE_JSON = json.dumps(
+    {
+        "suggested_total": 1100.0,
+        "breakdown": {"needs": 550.0, "wants": 330.0, "savings": 220.0},
+        "category_suggestions": [
+            {
+                "category_name": "Food",
+                "suggested_limit": 380.0,
+                "reason": "Below average — keep it up",
+            }
+        ],
+        "insights": ["Overall spending trending down 5% — great progress"],
+        "tips": ["Automate savings on payday", "Review subscriptions quarterly"],
+    }
+)
+
+
+class TestGeminiIntegration:
+    """Test Gemini AI budget generation (mocked HTTP calls)."""
+
+    @patch("app.services.ai.requests.post")
+    @patch("app.services.ai._settings")
+    def test_gemini_returns_ai_budget(
+        self, mock_settings, mock_post, client, auth_header
+    ):
+        """When Gemini key is set and API succeeds, method should be 'gemini'."""
+        mock_settings.gemini_api_key = "fake-gemini-key"
+        mock_settings.gemini_model = "gemini-1.5-flash"
+        mock_settings.openai_api_key = None
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = MOCK_GEMINI_RESPONSE
+        mock_post.return_value = mock_resp
+
+        food_id = _create_category(client, auth_header, "Food")
+        target = date.today().replace(day=15) - relativedelta(months=1)
+        _add_expense(client, auth_header, 400, "Groceries", target, food_id)
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+        data = r.get_json()
+
+        assert data["method"] == "gemini"
+        assert data["suggested_total"] == 1200.0
+        assert data["breakdown"]["needs"] == 600.0
+        assert "insights" in data
+        assert len(data["insights"]) >= 1
+        assert "tips" in data
+        assert len(data["tips"]) >= 1
+        assert "confidence" in data
+        assert "month" in data
+
+    @patch("app.services.ai.requests.post")
+    @patch("app.services.ai._settings")
+    def test_gemini_sends_persona_in_prompt(
+        self, mock_settings, mock_post, client, auth_header
+    ):
+        """The Gemini prompt should include the FinMind persona."""
+        from app.services.ai import FINMIND_PERSONA
+
+        mock_settings.gemini_api_key = "fake-gemini-key"
+        mock_settings.gemini_model = "gemini-1.5-flash"
+        mock_settings.openai_api_key = None
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = MOCK_GEMINI_RESPONSE
+        mock_post.return_value = mock_resp
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+
+        call_args = mock_post.call_args
+        body = call_args.kwargs.get("json") or call_args[1].get("json", {})
+        prompt_text = body["contents"][0]["parts"][0]["text"]
+        assert "FinMind" in prompt_text
+        assert "50/30/20" in prompt_text
+        assert FINMIND_PERSONA[:40] in prompt_text
+
+    @patch("app.services.ai.requests.post")
+    @patch("app.services.ai._settings")
+    def test_gemini_includes_spending_data_in_prompt(
+        self, mock_settings, mock_post, client, auth_header
+    ):
+        """Prompt should include monthly totals and category breakdown."""
+        mock_settings.gemini_api_key = "fake-gemini-key"
+        mock_settings.gemini_model = "gemini-1.5-flash"
+        mock_settings.openai_api_key = None
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = MOCK_GEMINI_RESPONSE
+        mock_post.return_value = mock_resp
+
+        food_id = _create_category(client, auth_header, "Food")
+        target = date.today().replace(day=15) - relativedelta(months=1)
+        _add_expense(client, auth_header, 500, "Groceries", target, food_id)
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+
+        call_args = mock_post.call_args
+        body = call_args.kwargs.get("json") or call_args[1].get("json", {})
+        prompt_text = body["contents"][0]["parts"][0]["text"]
+        assert "Monthly totals" in prompt_text
+        assert "Category breakdown" in prompt_text
+
+    @patch("app.services.ai.requests.post")
+    @patch("app.services.ai._settings")
+    def test_gemini_failure_falls_back_to_heuristic(
+        self, mock_settings, mock_post, client, auth_header
+    ):
+        """When Gemini API fails, should fallback to heuristic."""
+        mock_settings.gemini_api_key = "fake-gemini-key"
+        mock_settings.gemini_model = "gemini-1.5-flash"
+        mock_settings.openai_api_key = None
+
+        mock_post.side_effect = Exception("429 Too Many Requests")
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["method"] in ("heuristic", "heuristic_default")
+
+    @patch("app.services.ai.requests.post")
+    @patch("app.services.ai._settings")
+    def test_gemini_response_with_markdown_fences(
+        self, mock_settings, mock_post, client, auth_header
+    ):
+        """Gemini sometimes wraps JSON in markdown fences — parser handles it."""
+        mock_settings.gemini_api_key = "fake-gemini-key"
+        mock_settings.gemini_model = "gemini-1.5-flash"
+        mock_settings.openai_api_key = None
+
+        fenced_json = (
+            "```json\n"
+            + json.dumps(
+                {
+                    "suggested_total": 900.0,
+                    "breakdown": {
+                        "needs": 450.0,
+                        "wants": 270.0,
+                        "savings": 180.0,
+                    },
+                    "category_suggestions": [],
+                    "insights": ["Good savings habit"],
+                    "tips": ["Track daily expenses"],
+                }
+            )
+            + "\n```"
+        )
+
+        fenced_response = {
+            "candidates": [{"content": {"parts": [{"text": fenced_json}]}}]
+        }
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = fenced_response
+        mock_post.return_value = mock_resp
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["method"] == "gemini"
+        assert data["suggested_total"] == 900.0
+
+    @patch("app.services.ai.requests.post")
+    @patch("app.services.ai._settings")
+    def test_gemini_data_range_populated(
+        self, mock_settings, mock_post, client, auth_header
+    ):
+        """Gemini response should include data_range and monthly_totals."""
+        mock_settings.gemini_api_key = "fake-gemini-key"
+        mock_settings.gemini_model = "gemini-1.5-flash"
+        mock_settings.openai_api_key = None
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = MOCK_GEMINI_RESPONSE
+        mock_post.return_value = mock_resp
+
+        food_id = _create_category(client, auth_header, "Food")
+        target = date.today().replace(day=15) - relativedelta(months=1)
+        _add_expense(client, auth_header, 300, "Groceries", target, food_id)
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        data = r.get_json()
+
+        assert "data_range" in data
+        assert data["data_range"]["months_requested"] == 6
+        assert data["data_range"]["months_with_data"] >= 1
+        assert "monthly_totals" in data
+
+
+class TestOpenAIIntegration:
+    """Test OpenAI budget generation (mocked client)."""
+
+    @patch("app.services.ai.OpenAI")
+    @patch("app.services.ai._settings")
+    def test_openai_returns_ai_budget(
+        self, mock_settings, mock_openai_cls, client, auth_header
+    ):
+        """When OpenAI key is set and API succeeds, method should be 'openai'."""
+        mock_settings.gemini_api_key = None
+        mock_settings.openai_api_key = "fake-openai-key"
+
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_message = MagicMock()
+        mock_message.content = MOCK_OPENAI_RESPONSE_JSON
+        mock_choice = MagicMock()
+        mock_choice.message = mock_message
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[mock_choice]
+        )
+
+        food_id = _create_category(client, auth_header, "Food")
+        target = date.today().replace(day=15) - relativedelta(months=1)
+        _add_expense(client, auth_header, 350, "Groceries", target, food_id)
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+        data = r.get_json()
+
+        assert data["method"] == "openai"
+        assert data["suggested_total"] == 1100.0
+        assert "insights" in data
+        assert "tips" in data
+        assert data["breakdown"]["needs"] == 550.0
+
+    @patch("app.services.ai.OpenAI")
+    @patch("app.services.ai._settings")
+    def test_openai_uses_persona_as_system_message(
+        self, mock_settings, mock_openai_cls, client, auth_header
+    ):
+        """OpenAI call should send persona as system message."""
+        from app.services.ai import FINMIND_PERSONA
+
+        mock_settings.gemini_api_key = None
+        mock_settings.openai_api_key = "fake-openai-key"
+
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_message = MagicMock()
+        mock_message.content = MOCK_OPENAI_RESPONSE_JSON
+        mock_choice = MagicMock()
+        mock_choice.message = mock_message
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[mock_choice]
+        )
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+
+        call_kwargs = mock_client.chat.completions.create.call_args.kwargs
+        messages = call_kwargs["messages"]
+        system_msg = next(m for m in messages if m["role"] == "system")
+        assert system_msg["content"] == FINMIND_PERSONA
+        assert call_kwargs.get("response_format") == {"type": "json_object"}
+
+    @patch("app.services.ai.OpenAI")
+    @patch("app.services.ai._settings")
+    def test_openai_failure_falls_back_to_heuristic(
+        self, mock_settings, mock_openai_cls, client, auth_header
+    ):
+        """When OpenAI API fails, should fallback to heuristic."""
+        mock_settings.gemini_api_key = None
+        mock_settings.openai_api_key = "fake-openai-key"
+
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.side_effect = Exception("API rate limited")
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["method"] in ("heuristic", "heuristic_default")
+
+
+class TestAIFallbackChain:
+    """Test the priority chain: Gemini -> OpenAI -> Heuristic."""
+
+    @patch("app.services.ai.requests.post")
+    @patch("app.services.ai._settings")
+    def test_gemini_preferred_over_openai(
+        self, mock_settings, mock_post, client, auth_header
+    ):
+        """When both keys are set, Gemini should be tried first."""
+        mock_settings.gemini_api_key = "fake-gemini-key"
+        mock_settings.gemini_model = "gemini-1.5-flash"
+        mock_settings.openai_api_key = "fake-openai-key"
+
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = MOCK_GEMINI_RESPONSE
+        mock_post.return_value = mock_resp
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["method"] == "gemini"
+
+    @patch("app.services.ai.OpenAI")
+    @patch("app.services.ai.requests.post")
+    @patch("app.services.ai._settings")
+    def test_gemini_fail_then_openai_used(
+        self, mock_settings, mock_post, mock_openai_cls, client, auth_header
+    ):
+        """When Gemini fails, should fall through to OpenAI."""
+        mock_settings.gemini_api_key = "fake-gemini-key"
+        mock_settings.gemini_model = "gemini-1.5-flash"
+        mock_settings.openai_api_key = "fake-openai-key"
+
+        mock_post.side_effect = Exception("Gemini unavailable")
+
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_message = MagicMock()
+        mock_message.content = MOCK_OPENAI_RESPONSE_JSON
+        mock_choice = MagicMock()
+        mock_choice.message = mock_message
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[mock_choice]
+        )
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["method"] == "openai"
+
+    @patch("app.services.ai.requests.post")
+    @patch("app.services.ai._settings")
+    def test_all_ai_fail_uses_heuristic(
+        self, mock_settings, mock_post, client, auth_header
+    ):
+        """When all AI providers fail, heuristic should be used."""
+        mock_settings.gemini_api_key = "fake-gemini-key"
+        mock_settings.gemini_model = "gemini-1.5-flash"
+        mock_settings.openai_api_key = None
+
+        mock_post.side_effect = Exception("Network error")
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["method"] in ("heuristic", "heuristic_default")
+
+    @patch("app.services.ai._settings")
+    def test_no_keys_uses_heuristic(self, mock_settings, client, auth_header):
+        """When no AI keys are configured, heuristic is used directly."""
+        mock_settings.gemini_api_key = None
+        mock_settings.openai_api_key = None
+
+        r = client.get("/insights/budget-suggestion", headers=auth_header)
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["method"] in ("heuristic", "heuristic_default")
+
+
+class TestParseAIJson:
+    """Test the _parse_ai_json helper for various AI response formats."""
+
+    def test_plain_json(self):
+        from app.services.ai import _parse_ai_json
+
+        result = _parse_ai_json('{"key": "value"}')
+        assert result == {"key": "value"}
+
+    def test_json_with_markdown_fences(self):
+        from app.services.ai import _parse_ai_json
+
+        text = '```json\n{"key": "value"}\n```'
+        result = _parse_ai_json(text)
+        assert result == {"key": "value"}
+
+    def test_json_with_plain_fences(self):
+        from app.services.ai import _parse_ai_json
+
+        text = '```\n{"key": "value"}\n```'
+        result = _parse_ai_json(text)
+        assert result == {"key": "value"}
+
+    def test_json_with_surrounding_whitespace(self):
+        from app.services.ai import _parse_ai_json
+
+        text = '  \n  {"key": "value"}  \n  '
+        result = _parse_ai_json(text)
+        assert result == {"key": "value"}
+
+    def test_json_with_leading_text(self):
+        from app.services.ai import _parse_ai_json
+
+        text = 'Here is the JSON:\n{"suggested_total": 500}'
+        result = _parse_ai_json(text)
+        assert result["suggested_total"] == 500
+
+    def test_invalid_json_raises(self):
+        import pytest
+
+        from app.services.ai import _parse_ai_json
+
+        with pytest.raises(Exception):
+            _parse_ai_json("not json at all")
+
+
+class TestFinMindPersona:
+    """Verify persona content meets requirements."""
+
+    def test_persona_includes_key_elements(self):
+        from app.services.ai import FINMIND_PERSONA
+
+        assert "FinMind" in FINMIND_PERSONA
+        assert "50/30/20" in FINMIND_PERSONA
+        assert "JSON" in FINMIND_PERSONA
+        assert "actionable" in FINMIND_PERSONA
+        assert "trend" in FINMIND_PERSONA
+
+    def test_persona_has_rules_section(self):
+        from app.services.ai import FINMIND_PERSONA
+
+        assert "Rules" in FINMIND_PERSONA
+        assert "saving opportunity" in FINMIND_PERSONA
+
+    def test_persona_has_personality_section(self):
+        from app.services.ai import FINMIND_PERSONA
+
+        assert "Personality" in FINMIND_PERSONA
+        assert "Encouraging" in FINMIND_PERSONA

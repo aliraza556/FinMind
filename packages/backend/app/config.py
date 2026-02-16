@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = None
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-1.5-flash"
 
     twilio_account_sid: str | None = None
     twilio_auth_token: str | None = None

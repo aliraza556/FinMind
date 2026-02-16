@@ -89,7 +89,7 @@ def _ensure_schema_compatibility(app: Flask) -> None:
         cur.execute(
             """
             ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS preferred_currency VARCHAR(10) 
+            ADD COLUMN IF NOT EXISTS preferred_currency VARCHAR(10)
             NOT NULL DEFAULT 'INR'
             """
         )

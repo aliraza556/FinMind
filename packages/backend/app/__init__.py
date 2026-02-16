@@ -4,6 +4,7 @@ from .extensions import db, jwt
 from .routes import register_routes
 from flask_cors import CORS
 import click
+import importlib
 import os
 import logging
 from datetime import timedelta
@@ -45,6 +46,10 @@ def create_app(settings: Settings | None = None) -> Flask:
     CORS(app, resources={r"*": {"origins": "*"}}, supports_credentials=True)
 
     # Redis (already global)
+    # Register bank connectors so they appear in the registry
+    importlib.import_module("app.connectors.mock")
+    importlib.import_module("app.connectors.setu_aa")
+
     # Blueprint routes
     register_routes(app)
 

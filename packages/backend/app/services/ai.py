@@ -1,16 +1,23 @@
 import json
+import logging
 import math
+import re
 from datetime import date
+
+import requests
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import extract, func
-from ..extensions import db
-from ..models import Expense, Category
+
 from ..config import Settings
+from ..extensions import db
+from ..models import Category, Expense
 
 try:
     from openai import OpenAI
 except Exception:  # pragma: no cover
     OpenAI = None
+
+logger = logging.getLogger("finmind.ai")
 
 
 _settings = Settings()
@@ -263,18 +270,20 @@ def _heuristic_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
 def monthly_budget_suggestion(uid: int, ym: str, lookback: int = MAX_MONTHS):
     """Generate dynamic budget suggestion using 3-6 months of historical data.
 
-    Falls back to heuristic if OpenAI is unavailable.
+    Priority: Gemini (free) -> OpenAI -> Heuristic fallback.
     """
+    if _settings.gemini_api_key:
+        try:
+            return _gemini_budget(uid, ym, lookback)
+        except Exception as exc:
+            logger.warning("Gemini budget generation failed: %s", exc)
+
     if _settings.openai_api_key and OpenAI:
         try:
             return _openai_budget(uid, ym, lookback)
         except Exception as exc:
-            import logging
+            logger.warning("OpenAI budget generation failed: %s", exc)
 
-            logging.getLogger("finmind.ai").warning(
-                "OpenAI budget generation failed, falling back to heuristic: %s",
-                exc,
-            )
     return _heuristic_budget(uid, ym, lookback)
 
 
@@ -287,6 +296,99 @@ FINMIND_PERSONA = (
     "(needs/wants/savings) as a starting framework and adjust based on "
     "the user's actual patterns. You respond ONLY with valid JSON."
 )
+
+
+def _gemini_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
+    """Use Gemini (free tier) to generate budget suggestions."""
+    api_key = _settings.gemini_api_key
+    model = _settings.gemini_model or "gemini-1.5-flash"
+
+    months = _month_range(ym, lookback)
+    monthly_totals = _fetch_monthly_totals(uid, months)
+    category_data = _fetch_category_monthly_totals(uid, months)
+
+    months_with_data = len(monthly_totals)
+    confidence = _compute_confidence(months_with_data)
+
+    cat_summary = {}
+    for cat_id, info in category_data.items():
+        cat_summary[info["name"]] = {
+            m: info["monthly"].get(m, 0) for m in sorted(months)
+        }
+
+    prompt = (
+        f"{FINMIND_PERSONA}\n\n"
+        f"Here is my spending data. Please suggest a budget for {ym}.\n\n"
+        f"Monthly totals: {json.dumps(monthly_totals)}\n"
+        f"Category breakdown: {json.dumps(cat_summary)}\n\n"
+        "Analyse trends and return ONLY valid JSON (no markdown) with:\n"
+        "{\n"
+        '  "suggested_total": number,\n'
+        '  "breakdown": {"needs": number, "wants": number, '
+        '"savings": number},\n'
+        '  "category_suggestions": [{"category_name": string, '
+        '"suggested_limit": number, "reason": string}],\n'
+        '  "insights": [string],\n'
+        '  "tips": [string]\n'
+        "}"
+    )
+
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{model}:generateContent"
+    )
+    resp = requests.post(
+        url,
+        params={"key": api_key},
+        json={
+            "generationConfig": {"temperature": 0.2},
+            "contents": [{"parts": [{"text": prompt}]}],
+        },
+        timeout=45,
+    )
+    resp.raise_for_status()
+
+    payload = resp.json()
+    candidates = payload.get("candidates") or []
+    if not candidates:
+        raise ValueError("Gemini returned no candidates")
+
+    parts = (
+        candidates[0].get("content", {}).get("parts", [])
+        if isinstance(candidates[0], dict)
+        else []
+    )
+    text_blob = "\n".join(
+        str(part.get("text") or "") for part in parts if isinstance(part, dict)
+    ).strip()
+
+    obj = _parse_ai_json(text_blob)
+    obj["month"] = ym
+    obj["method"] = "gemini"
+    obj["confidence"] = confidence
+    obj["data_range"] = {
+        "months_requested": lookback,
+        "months_with_data": months_with_data,
+    }
+    if monthly_totals:
+        sorted_keys = sorted(monthly_totals.keys())
+        obj["data_range"]["oldest_month"] = sorted_keys[0]
+        obj["data_range"]["newest_month"] = sorted_keys[-1]
+    obj["monthly_totals"] = {m: monthly_totals.get(m, 0.0) for m in sorted(months)}
+    return obj
+
+
+def _parse_ai_json(text: str) -> dict:
+    """Extract JSON from AI response, stripping markdown fences if present."""
+    candidate = text.strip()
+    fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", candidate, flags=re.S)
+    if fenced:
+        candidate = fenced.group(1)
+    start = candidate.find("{")
+    end = candidate.rfind("}")
+    if start >= 0 and end > start:
+        candidate = candidate[start : end + 1]
+    return json.loads(candidate)
 
 
 def _openai_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):

@@ -268,9 +268,25 @@ def monthly_budget_suggestion(uid: int, ym: str, lookback: int = MAX_MONTHS):
     if _settings.openai_api_key and OpenAI:
         try:
             return _openai_budget(uid, ym, lookback)
-        except Exception:
-            pass
+        except Exception as exc:
+            import logging
+
+            logging.getLogger("finmind.ai").warning(
+                "OpenAI budget generation failed, falling back to heuristic: %s",
+                exc,
+            )
     return _heuristic_budget(uid, ym, lookback)
+
+
+FINMIND_PERSONA = (
+    "You are FinMind, an expert personal finance advisor who helps users "
+    "take control of their spending. You analyse multi-month transaction "
+    "history, spot trends early, and give specific, actionable budget "
+    "recommendations. You are encouraging but honest — if spending is "
+    "rising you say so clearly. You always use the 50/30/20 rule "
+    "(needs/wants/savings) as a starting framework and adjust based on "
+    "the user's actual patterns. You respond ONLY with valid JSON."
+)
 
 
 def _openai_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
@@ -289,24 +305,17 @@ def _openai_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
             m: info["monthly"].get(m, 0) for m in sorted(months)
         }
 
-    prompt = (
-        "You are a personal finance advisor. Given the following monthly "
-        "spending data over multiple months (by category), suggest a budget "
-        "for the upcoming month.\n\n"
-        f"Target month: {ym}\n"
+    user_prompt = (
+        f"Here is my spending data. Please suggest a budget for {ym}.\n\n"
         f"Monthly totals: {json.dumps(monthly_totals)}\n"
         f"Category breakdown: {json.dumps(cat_summary)}\n\n"
-        "Guidelines:\n"
-        "- Use the 50/30/20 rule as a baseline (needs/wants/savings)\n"
-        "- Weight recent months more heavily\n"
-        "- Identify categories with increasing trends and suggest limits\n"
-        "- Provide 2-3 actionable tips\n\n"
-        "Return ONLY valid JSON with these exact fields:\n"
+        "Please analyse trends and return ONLY valid JSON with:\n"
         "{\n"
         '  "suggested_total": number,\n'
         '  "breakdown": {"needs": number, "wants": number, "savings": number},\n'
         '  "category_suggestions": [{"category_name": string, '
         '"suggested_limit": number, "reason": string}],\n'
+        '  "insights": [string],\n'
         '  "tips": [string]\n'
         "}"
     )
@@ -314,7 +323,11 @@ def _openai_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
     resp = client.chat.completions.create(
         model="gpt-4o-mini",
         temperature=0.2,
-        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": FINMIND_PERSONA},
+            {"role": "user", "content": user_prompt},
+        ],
     )
     content = resp.choices[0].message.content
 

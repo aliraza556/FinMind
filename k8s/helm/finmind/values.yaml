@@ -1,0 +1,143 @@
+# ── Global ──
+namespace: finmind
+
+# ── Container images ──
+backend:
+  image:
+    repository: finmind-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  port: 8000
+  env:
+    LOG_LEVEL: INFO
+
+frontend:
+  image:
+    repository: finmind-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 128Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+  port: 80
+
+# ── PostgreSQL ──
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16"
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  storage:
+    size: 10Gi
+    storageClassName: ""
+  port: 5432
+  database: finmind
+  username: finmind
+
+# ── Redis ──
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: 7-alpine
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  port: 6379
+
+# ── Secrets (override at install time) ──
+secrets:
+  postgresPassword: finmind
+  jwtSecret: change-me-in-production
+  databaseUrl: "postgresql+psycopg2://finmind:finmind@finmind-postgres:5432/finmind"
+  redisUrl: "redis://finmind-redis:6379/0"
+  openaiApiKey: ""
+  geminiApiKey: ""
+
+# ── Ingress / TLS ──
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: finmind.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /health
+          pathType: Exact
+          service: backend
+        - path: /auth
+          pathType: Prefix
+          service: backend
+        - path: /expenses
+          pathType: Prefix
+          service: backend
+        - path: /bills
+          pathType: Prefix
+          service: backend
+        - path: /reminders
+          pathType: Prefix
+          service: backend
+        - path: /insights
+          pathType: Prefix
+          service: backend
+        - path: /categories
+          pathType: Prefix
+          service: backend
+        - path: /dashboard
+          pathType: Prefix
+          service: backend
+        - path: /docs
+          pathType: Prefix
+          service: backend
+  tls:
+    - secretName: finmind-tls
+      hosts:
+        - finmind.example.com
+
+# ── Observability ──
+observability:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    path: /health

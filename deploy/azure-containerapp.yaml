@@ -1,0 +1,72 @@
+location: eastus
+type: Microsoft.App/containerApps
+properties:
+  managedEnvironmentId: /subscriptions/SUBSCRIPTION_ID/resourceGroups/finmind-rg/providers/Microsoft.App/managedEnvironments/finmind-env
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: true
+      targetPort: 8000
+      transport: http
+      traffic:
+        - latestRevision: true
+          weight: 100
+    secrets:
+      - name: database-url
+        value: "postgresql+psycopg2://finmind:PASSWORD@HOST:5432/finmind"
+      - name: redis-url
+        value: "redis://HOST:6380"
+      - name: jwt-secret
+        value: "CHANGE_ME_IN_PRODUCTION"
+  template:
+    containers:
+      - name: finmind-backend
+        image: finmindregistry.azurecr.io/finmind-backend:latest
+        resources:
+          cpu: 0.5
+          memory: 1Gi
+        command:
+          - sh
+          - -c
+          - >-
+            python -m flask --app wsgi:app init-db &&
+            gunicorn -w 2 -k gthread --timeout 120 -b 0.0.0.0:8000 wsgi:app
+        env:
+          - name: DATABASE_URL
+            secretRef: database-url
+          - name: REDIS_URL
+            secretRef: redis-url
+          - name: JWT_SECRET
+            secretRef: jwt-secret
+          - name: LOG_LEVEL
+            value: INFO
+          - name: PORT
+            value: "8000"
+        probes:
+          - type: Startup
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 12
+          - type: Liveness
+            httpGet:
+              path: /health
+              port: 8000
+            periodSeconds: 30
+            failureThreshold: 3
+          - type: Readiness
+            httpGet:
+              path: /health/ready
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 3
+    scale:
+      minReplicas: 1
+      maxReplicas: 10
+      rules:
+        - name: http-scaling
+          http:
+            metadata:
+              concurrentRequests: "50"

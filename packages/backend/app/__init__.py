@@ -56,6 +56,36 @@ def create_app(settings: Settings | None = None) -> Flask:
     def health():
         return jsonify(status="ok"), 200
 
+    @app.get("/health/ready")
+    def health_ready():
+        """Deep health check: verifies DB and Redis connectivity."""
+        checks = {}
+        overall = True
+
+        try:
+            conn = db.engine.raw_connection()
+            conn.cursor().execute("SELECT 1")
+            conn.close()
+            checks["database"] = "connected"
+        except Exception as e:
+            checks["database"] = f"error: {e}"
+            overall = False
+
+        try:
+            from .extensions import redis_client
+
+            redis_client.ping()
+            checks["redis"] = "connected"
+        except Exception as e:
+            checks["redis"] = f"error: {e}"
+            overall = False
+
+        status_code = 200 if overall else 503
+        return (
+            jsonify(status="ok" if overall else "degraded", checks=checks),
+            status_code,
+        )
+
     @app.errorhandler(500)
     def internal_error(_error):
         return jsonify(error="internal server error"), 500

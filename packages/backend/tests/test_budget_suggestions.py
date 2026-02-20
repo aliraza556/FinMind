@@ -378,9 +378,7 @@ MOCK_GEMINI_RESPONSE = {
                                         "reason": "Spending trend is stable",
                                     }
                                 ],
-                                "insights": [
-                                    "Food spending is consistent"
-                                ],
+                                "insights": ["Food spending is consistent"],
                                 "tips": [
                                     "Meal-prep to cut grocery spend 15%",
                                     "Set a weekly dining-out cap of 50",

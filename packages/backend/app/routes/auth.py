@@ -15,6 +15,17 @@ import time
 
 bp = Blueprint("auth", __name__)
 logger = logging.getLogger("finmind.auth")
+SUPPORTED_CURRENCIES = {
+    "USD",
+    "INR",
+    "EUR",
+    "GBP",
+    "AED",
+    "SGD",
+    "AUD",
+    "CAD",
+    "JPY",
+}
 
 
 @bp.post("/register")
@@ -28,7 +39,11 @@ def register():
     if db.session.query(User).filter_by(email=email).first():
         logger.info("Register email already used: %s", email)
         return jsonify(error="email already used"), 409
-    user = User(email=email, password_hash=generate_password_hash(password))
+    user = User(
+        email=email,
+        password_hash=generate_password_hash(password),
+        preferred_currency="INR",
+    )
     db.session.add(user)
     db.session.commit()
     logger.info("Registered user id=%s email=%s", user.id, email)
@@ -49,6 +64,41 @@ def login():
     _store_refresh_session(refresh, str(user.id))
     logger.info("Login success user_id=%s", user.id)
     return jsonify(access_token=access, refresh_token=refresh)
+
+
+@bp.get("/me")
+@jwt_required()
+def me():
+    uid = int(get_jwt_identity())
+    user = db.session.get(User, uid)
+    if not user:
+        return jsonify(error="not found"), 404
+    return jsonify(
+        id=user.id,
+        email=user.email,
+        preferred_currency=user.preferred_currency or "INR",
+    )
+
+
+@bp.patch("/me")
+@jwt_required()
+def update_me():
+    uid = int(get_jwt_identity())
+    user = db.session.get(User, uid)
+    if not user:
+        return jsonify(error="not found"), 404
+    data = request.get_json() or {}
+    if "preferred_currency" in data:
+        cur = str(data.get("preferred_currency") or "").upper().strip()
+        if cur not in SUPPORTED_CURRENCIES:
+            return jsonify(error="unsupported preferred_currency"), 400
+        user.preferred_currency = cur
+    db.session.commit()
+    return jsonify(
+        id=user.id,
+        email=user.email,
+        preferred_currency=user.preferred_currency or "INR",
+    )
 
 
 @bp.post("/refresh")

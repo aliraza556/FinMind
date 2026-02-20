@@ -3,6 +3,7 @@ import { api, baseURL } from './client';
 export type Expense = {
   id: number;
   amount: number;
+  currency?: string;
   description: string;
   category_id: number | null;
   date: string; // ISO date

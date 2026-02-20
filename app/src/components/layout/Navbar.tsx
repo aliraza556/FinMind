@@ -87,7 +87,7 @@ export function Navbar() {
             {isAuthed ? (
               <>
                 <Button variant="outline" size="sm" asChild>
-                  <Link to="/dashboard">Account</Link>
+                  <Link to="/account">Account</Link>
                 </Button>
                 <Button variant="hero" size="sm" onClick={() => { void handleLogout(); }}>
                   Logout
@@ -136,7 +136,7 @@ export function Navbar() {
                 {isAuthed ? (
                   <>
                     <Button variant="outline" size="sm" asChild onClick={() => setIsOpen(false)}>
-                      <Link to="/dashboard">Account</Link>
+                      <Link to="/account">Account</Link>
                     </Button>
                     <Button variant="hero" size="sm" onClick={() => { setIsOpen(false); void handleLogout(); }}>
                       Logout

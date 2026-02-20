@@ -40,3 +40,29 @@ def test_auth_logout_revokes_refresh_token(client):
         "/auth/refresh", headers={"Authorization": f"Bearer {refresh_token}"}
     )
     assert r.status_code == 401
+
+
+def test_auth_me_and_update_preferred_currency(client):
+    email = "profile@test.com"
+    password = "secret123"
+    r = client.post("/auth/register", json={"email": email, "password": password})
+    assert r.status_code in (201, 409)
+
+    r = client.post("/auth/login", json={"email": email, "password": password})
+    assert r.status_code == 200
+    access = r.get_json()["access_token"]
+    auth = {"Authorization": f"Bearer {access}"}
+
+    r = client.get("/auth/me", headers=auth)
+    assert r.status_code == 200
+    me = r.get_json()
+    assert me["email"] == email
+    assert me["preferred_currency"] == "INR"
+
+    r = client.patch("/auth/me", json={"preferred_currency": "inr"}, headers=auth)
+    assert r.status_code == 200
+    updated = r.get_json()
+    assert updated["preferred_currency"] == "INR"
+
+    r = client.patch("/auth/me", json={"preferred_currency": "ZZZ"}, headers=auth)
+    assert r.status_code == 400

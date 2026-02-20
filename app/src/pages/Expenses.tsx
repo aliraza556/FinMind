@@ -42,6 +42,7 @@ import {
   type ImportTransaction,
 } from '@/api/expenses';
 import { listCategories, type Category } from '@/api/categories';
+import { formatMoney } from '@/lib/currency';
 
 export default function Expenses() {
   const { toast } = useToast();
@@ -379,7 +380,7 @@ export default function Expenses() {
                   <div key={`${row.date}-${row.amount}-${idx}`} className="grid grid-cols-3 gap-2 border-b py-1">
                     <span>{row.date}</span>
                     <span>{row.description}</span>
-                    <span className="text-right">${Number(row.amount).toFixed(2)}</span>
+                    <span className="text-right">{formatMoney(Number(row.amount))}</span>
                   </div>
                 ))}
               </div>
@@ -440,7 +441,7 @@ export default function Expenses() {
                       <td className="py-2">{e.date.slice(0, 10)}</td>
                       <td className="py-2">{e.description}</td>
                       <td className="py-2">{e.category_id ? categoryMap.get(e.category_id) : '—'}</td>
-                      <td className="py-2 font-medium">${e.amount.toFixed(2)}</td>
+                      <td className="py-2 font-medium">{formatMoney(e.amount, e.currency)}</td>
                       <td className="py-2">
                         <div className="flex gap-2 justify-end">
                           <Button variant="outline" onClick={() => openEdit(e)}>Edit</Button>
@@ -467,7 +468,7 @@ export default function Expenses() {
                   ))}
                   <tr className="border-t bg-muted/30">
                     <td className="py-2" colSpan={3}>Total</td>
-                    <td className="py-2 font-semibold">${totals.sum.toFixed(2)}</td>
+                    <td className="py-2 font-semibold">{formatMoney(totals.sum)}</td>
                     <td></td>
                   </tr>
                 </tbody>

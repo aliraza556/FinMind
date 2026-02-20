@@ -59,6 +59,23 @@ def test_expenses_crud_filters_and_canonical_fields(client, auth_header):
     assert r.get_json() == []
 
 
+def test_expense_create_defaults_to_user_preferred_currency(client, auth_header):
+    r = client.patch(
+        "/auth/me", json={"preferred_currency": "INR"}, headers=auth_header
+    )
+    assert r.status_code == 200
+
+    payload = {
+        "amount": 99.5,
+        "description": "Local travel",
+        "date": "2026-02-12",
+    }
+    r = client.post("/expenses", json=payload, headers=auth_header)
+    assert r.status_code == 201
+    created = r.get_json()
+    assert created["currency"] == "INR"
+
+
 def test_expense_import_preview_and_commit_prevents_duplicates(client, auth_header):
     cat_id = _create_category(client, auth_header)
 

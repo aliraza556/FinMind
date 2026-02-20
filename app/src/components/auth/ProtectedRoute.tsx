@@ -1,8 +1,15 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { getToken, getRefreshToken, setToken, clearToken, clearRefreshToken } from '../../lib/auth';
+import {
+  getToken,
+  getRefreshToken,
+  setToken,
+  clearToken,
+  clearRefreshToken,
+  setCurrency,
+} from '../../lib/auth';
 import { type ReactNode } from 'react';
-import { refresh } from '@/api/auth';
+import { me, refresh } from '@/api/auth';
 
 type Props = { children: ReactNode };
 
@@ -15,6 +22,12 @@ export function ProtectedRoute({ children }: Props) {
     const checkAuth = async () => {
       const access = getToken();
       if (access) {
+        try {
+          const profile = await me();
+          setCurrency(profile.preferred_currency || 'INR');
+        } catch {
+          // Keep current local currency if profile fetch fails.
+        }
         if (active) setStatus('authed');
         return;
       }
@@ -26,6 +39,12 @@ export function ProtectedRoute({ children }: Props) {
       try {
         const data = await refresh(refreshToken);
         setToken(data.access_token);
+        try {
+          const profile = await me();
+          setCurrency(profile.preferred_currency || 'INR');
+        } catch {
+          // Keep current local currency if profile fetch fails.
+        }
         if (active) setStatus('authed');
       } catch {
         clearToken();

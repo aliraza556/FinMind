@@ -1,0 +1,50 @@
+# FinMind – Combined Heroku Dockerfile (Frontend + Backend)
+# Serves both the React SPA and Flask API from a single container.
+# Nginx handles frontend static files and reverse-proxies API routes to gunicorn.
+
+# ── Stage 1: Build frontend SPA ──
+FROM node:20-alpine AS frontend-builder
+ARG VITE_API_URL=http://localhost:8000
+ENV VITE_API_URL=${VITE_API_URL}
+WORKDIR /frontend
+COPY app/package*.json ./
+RUN npm ci || npm install
+COPY app/ .
+RUN npm run build
+
+# ── Stage 2: Backend + Frontend serving ──
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    curl \
+    nginx \
+    gettext-base \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY packages/backend/requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+
+# Copy backend application
+COPY packages/backend/app /app/app
+COPY packages/backend/wsgi.py /app/wsgi.py
+
+# Copy frontend build output
+COPY --from=frontend-builder /frontend/dist /usr/share/nginx/html
+
+# Copy nginx config template and start script
+COPY deploy/heroku-nginx.conf.template /etc/nginx/nginx.conf.template
+COPY deploy/heroku-start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
+EXPOSE 8000
+
+CMD ["/app/start.sh"]

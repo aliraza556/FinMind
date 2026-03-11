@@ -7,7 +7,6 @@ set -euo pipefail
 # Prerequisites:
 #   - gcloud CLI authenticated (gcloud auth login)
 #   - Project set (gcloud config set project PROJECT_ID)
-#   - Docker installed
 #   - Cloud SQL (PostgreSQL) + Memorystore (Redis) provisioned
 #
 # Usage:
@@ -28,6 +27,7 @@ echo "==> Enabling APIs..."
 gcloud services enable \
   run.googleapis.com \
   containerregistry.googleapis.com \
+  cloudbuild.googleapis.com \
   secretmanager.googleapis.com \
   --project="$PROJECT"
 
@@ -37,20 +37,14 @@ gcloud builds submit packages/backend/ \
   --tag "gcr.io/${PROJECT}/finmind-backend:latest" \
   --project="$PROJECT"
 
-# ── 3. Build & push frontend image ──
-echo "==> Building frontend with Cloud Build..."
-gcloud builds submit app/ \
-  --tag "gcr.io/${PROJECT}/finmind-frontend:latest" \
-  --project="$PROJECT"
-
-# ── 4. Create secrets (if not exist) ──
+# ── 3. Create secrets (if not exist) ──
 echo "==> Ensuring secrets exist..."
 for secret in finmind-database-url finmind-redis-url finmind-jwt-secret; do
   gcloud secrets describe "$secret" --project="$PROJECT" 2>/dev/null || \
     echo -n "CHANGE_ME" | gcloud secrets create "$secret" --data-file=- --project="$PROJECT"
 done
 
-# ── 5. Deploy backend to Cloud Run ──
+# ── 4. Deploy backend to Cloud Run ──
 echo "==> Deploying backend..."
 gcloud run deploy finmind-backend \
   --image "gcr.io/${PROJECT}/finmind-backend:latest" \
@@ -67,6 +61,33 @@ gcloud run deploy finmind-backend \
   --project="$PROJECT"
 
 BACKEND_URL=$(gcloud run services describe finmind-backend --region="$REGION" --project="$PROJECT" --format="value(status.url)")
+echo "    Backend URL: ${BACKEND_URL}"
+
+# ── 5. Build frontend with correct VITE_API_URL baked in at build time ──
+# Vite embeds VITE_API_URL at build time, so we must rebuild after knowing
+# the backend URL. We use Cloud Build with a custom config to pass build args.
+echo "==> Building frontend with VITE_API_URL=${BACKEND_URL}..."
+CLOUDBUILD_CONF=$(mktemp /tmp/cloudbuild-frontend-XXXXX.yaml)
+cat > "$CLOUDBUILD_CONF" <<'EOF'
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'VITE_API_URL=$_VITE_API_URL'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/finmind-frontend:latest'
+      - '.'
+images:
+  - 'gcr.io/$PROJECT_ID/finmind-frontend:latest'
+EOF
+
+gcloud builds submit app/ \
+  --config="$CLOUDBUILD_CONF" \
+  --substitutions="_VITE_API_URL=${BACKEND_URL}" \
+  --project="$PROJECT"
+
+rm -f "$CLOUDBUILD_CONF"
 
 # ── 6. Deploy frontend to Cloud Run ──
 echo "==> Deploying frontend..."
@@ -79,7 +100,6 @@ gcloud run deploy finmind-frontend \
   --cpu 1 \
   --min-instances 1 \
   --max-instances 5 \
-  --set-env-vars "VITE_API_URL=${BACKEND_URL}" \
   --allow-unauthenticated \
   --project="$PROJECT"
 

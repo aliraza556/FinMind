@@ -2,10 +2,10 @@
   "family": "finmind",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
-  "cpu": "512",
-  "memory": "1024",
+  "cpu": "1024",
+  "memory": "2048",
   "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
   "containerDefinitions": [
     {
       "name": "finmind-backend",
@@ -52,6 +52,32 @@
           "awslogs-group": "/ecs/finmind",
           "awslogs-region": "REGION",
           "awslogs-stream-prefix": "backend"
+        }
+      }
+    },
+    {
+      "name": "finmind-frontend",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/finmind-frontend:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 10
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/finmind",
+          "awslogs-region": "REGION",
+          "awslogs-stream-prefix": "frontend"
         }
       }
     }

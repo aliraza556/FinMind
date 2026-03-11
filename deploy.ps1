@@ -49,6 +49,15 @@ function Test-Command($cmd) {
     }
 }
 
+# Find a bash executable (WSL, Git Bash, or MSYS2)
+function Find-Bash {
+    if (Get-Command "bash" -ErrorAction SilentlyContinue) { return "bash" }
+    if (Get-Command "wsl" -ErrorAction SilentlyContinue) { return "wsl bash" }
+    $gitBash = "C:\Program Files\Git\bin\bash.exe"
+    if (Test-Path $gitBash) { return "`"$gitBash`"" }
+    return $null
+}
+
 function Deploy-DockerDev {
     Write-Info "Starting FinMind in development mode..."
     Test-Command docker
@@ -103,6 +112,43 @@ function Deploy-FlyIo {
     fly launch --config deploy/fly-frontend.toml --no-deploy --yes 2>$null
     fly deploy --config deploy/fly-frontend.toml
     Write-Success "Deployed to Fly.io"
+}
+
+function Deploy-AWS {
+    Write-Info "Deploying to AWS ECS Fargate..."
+    Test-Command docker
+    $bashCmd = Find-Bash
+    if (-not $bashCmd) { Write-Err "bash is required (install WSL or Git for Windows)." }
+    Ensure-Env
+    Invoke-Expression "$bashCmd deploy/aws-deploy.sh"
+    Write-Success "Deployed to AWS ECS Fargate."
+}
+
+function Deploy-GCP {
+    Write-Info "Deploying to GCP Cloud Run..."
+    $bashCmd = Find-Bash
+    if (-not $bashCmd) { Write-Err "bash is required (install WSL or Git for Windows)." }
+    Ensure-Env
+    Invoke-Expression "$bashCmd deploy/gcp-deploy.sh"
+    Write-Success "Deployed to GCP Cloud Run."
+}
+
+function Deploy-Azure {
+    Write-Info "Deploying to Azure Container Apps..."
+    $bashCmd = Find-Bash
+    if (-not $bashCmd) { Write-Err "bash is required (install WSL or Git for Windows)." }
+    Ensure-Env
+    Invoke-Expression "$bashCmd deploy/azure-deploy.sh"
+    Write-Success "Deployed to Azure Container Apps."
+}
+
+function Deploy-DigitalOcean {
+    Write-Info "Deploying to DigitalOcean Droplet..."
+    $bashCmd = Find-Bash
+    if (-not $bashCmd) { Write-Err "bash is required (install WSL or Git for Windows)." }
+    Ensure-Env
+    Invoke-Expression "$bashCmd deploy/digitalocean-droplet.sh"
+    Write-Success "Deployed to DigitalOcean."
 }
 
 function Deploy-K8s {
@@ -170,10 +216,10 @@ switch ($Platform) {
     'heroku'        { Deploy-Heroku }
     'render'        { Deploy-Render }
     'flyio'         { Deploy-FlyIo }
-    'digitalocean'  { Write-Info "Run: bash deploy/digitalocean-droplet.sh" }
-    'aws'           { Write-Info "Run: bash deploy/aws-deploy.sh" }
-    'gcp'           { Write-Info "Run: bash deploy/gcp-deploy.sh" }
-    'azure'         { Write-Info "Run: bash deploy/azure-deploy.sh" }
+    'digitalocean'  { Deploy-DigitalOcean }
+    'aws'           { Deploy-AWS }
+    'gcp'           { Deploy-GCP }
+    'azure'         { Deploy-Azure }
     'k8s'           { Deploy-K8s }
     'tilt'          { Deploy-Tilt }
     'verify'        { Verify-Deployment $Url }

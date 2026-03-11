@@ -1,8 +1,8 @@
 {
-  "serviceName": "finmind-backend",
+  "serviceName": "finmind",
   "cluster": "finmind-cluster",
   "taskDefinition": "finmind",
-  "desiredCount": 2,
+  "desiredCount": 1,
   "launchType": "FARGATE",
   "deploymentConfiguration": {
     "maximumPercent": 200,
@@ -14,17 +14,22 @@
   },
   "networkConfiguration": {
     "awsvpcConfiguration": {
-      "subnets": ["subnet-XXXXX", "subnet-YYYYY"],
-      "securityGroups": ["sg-XXXXX"],
+      "subnets": ["SUBNET_IDS"],
+      "securityGroups": ["SG_ID"],
       "assignPublicIp": "ENABLED"
     }
   },
   "loadBalancers": [
     {
-      "targetGroupArn": "arn:aws:elasticloadbalancing:REGION:ACCOUNT_ID:targetgroup/finmind-tg/XXXXX",
+      "targetGroupArn": "BACKEND_TG_ARN",
       "containerName": "finmind-backend",
       "containerPort": 8000
+    },
+    {
+      "targetGroupArn": "FRONTEND_TG_ARN",
+      "containerName": "finmind-frontend",
+      "containerPort": 80
     }
   ],
-  "healthCheckGracePeriodSeconds": 60
+  "healthCheckGracePeriodSeconds": 120
 }

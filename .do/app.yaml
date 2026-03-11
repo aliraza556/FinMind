@@ -10,6 +10,11 @@ spec:
       num_nodes: 1
       size: db-s-dev-database
       version: "16"
+    - engine: REDIS
+      name: finmind-redis
+      num_nodes: 1
+      size: db-s-dev-database
+      version: "7"
 
   services:
     # ── Backend API ──
@@ -35,8 +40,7 @@ spec:
           value: ${finmind-db.DATABASE_URL}
         - key: REDIS_URL
           scope: RUN_TIME
-          type: SECRET
-          value: "redis://default:password@finmind-redis:25061"
+          value: ${finmind-redis.DATABASE_URL}
         - key: JWT_SECRET
           scope: RUN_TIME
           type: SECRET

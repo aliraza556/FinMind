@@ -37,24 +37,39 @@ export type BudgetSuggestion = {
     wants: number;
     savings: number;
   };
-  confidence: ConfidenceScore;
+  confidence?: ConfidenceScore;
   spending_trend?: SpendingTrend;
-  category_suggestions: CategorySuggestion[];
-  data_range: DataRange;
+  category_suggestions?: CategorySuggestion[];
+  data_range?: DataRange;
   monthly_totals?: Record<string, number>;
-  method: 'heuristic' | 'heuristic_default' | 'openai';
   tips?: string[];
+  analytics?: {
+    month_over_month_change_pct: number;
+    current_month_expenses: number;
+    previous_month_expenses: number;
+    top_categories: Array<{ category_id: string; amount: number }>;
+  };
+  persona?: string;
+  method: 'gemini' | 'heuristic' | 'heuristic_default' | 'openai' | string;
+  warnings?: string[];
+  net_flow?: number;
 };
 
-export async function getBudgetSuggestion(
-  month?: string,
-  months?: number,
-): Promise<BudgetSuggestion> {
-  const params = new URLSearchParams();
-  if (month) params.set('month', month);
-  if (months) params.set('months', String(months));
-  const query = params.toString();
+export async function getBudgetSuggestion(params?: {
+  month?: string;
+  months?: number;
+  geminiApiKey?: string;
+  persona?: string;
+}): Promise<BudgetSuggestion> {
+  const searchParams = new URLSearchParams();
+  if (params?.month) searchParams.set('month', params.month);
+  if (params?.months) searchParams.set('months', String(params.months));
+  const query = searchParams.toString();
+  const headers: Record<string, string> = {};
+  if (params?.geminiApiKey) headers['X-Gemini-Api-Key'] = params.geminiApiKey;
+  if (params?.persona) headers['X-Insight-Persona'] = params.persona;
   return api<BudgetSuggestion>(
     `/insights/budget-suggestion${query ? `?${query}` : ''}`,
+    { headers },
   );
 }

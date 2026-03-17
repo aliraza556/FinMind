@@ -26,14 +26,25 @@ def budget_suggestion():
     except (ValueError, TypeError):
         lookback = MAX_MONTHS
 
+    user_gemini_key = (request.headers.get("X-Gemini-Api-Key") or "").strip() or None
+    persona = (request.headers.get("X-Insight-Persona") or "").strip() or None
+
     cache_key = budget_suggestion_key(uid, ym, lookback)
     cached = cache_get(cache_key)
-    if cached:
+    if cached and not user_gemini_key:
         logger.info("Budget suggestion cache hit user=%s month=%s", uid, ym)
         return jsonify(cached)
 
-    suggestion = monthly_budget_suggestion(uid, ym, lookback)
-    cache_set(cache_key, suggestion, ttl_seconds=BUDGET_CACHE_TTL)
+    suggestion = monthly_budget_suggestion(
+        uid,
+        ym,
+        lookback=lookback,
+        gemini_api_key=user_gemini_key,
+        persona=persona,
+    )
+
+    if not user_gemini_key:
+        cache_set(cache_key, suggestion, ttl_seconds=BUDGET_CACHE_TTL)
 
     logger.info(
         "Budget suggestion served user=%s month=%s lookback=%s method=%s",

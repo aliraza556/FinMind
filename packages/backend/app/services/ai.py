@@ -19,8 +19,11 @@ except Exception:  # pragma: no cover
 
 logger = logging.getLogger("finmind.ai")
 
-
 _settings = Settings()
+DEFAULT_PERSONA = (
+    "You are FinMind's pragmatic financial coach. Be concise, non-judgmental, "
+    "data-driven, and action-oriented. Return actionable, realistic guidance."
+)
 
 MIN_MONTHS = 3
 MAX_MONTHS = 6
@@ -104,11 +107,76 @@ def _fetch_category_monthly_totals(uid: int, months: list[str]):
     return category_data
 
 
-def _weighted_average(values: list[float]) -> float:
-    """Compute weighted average giving more weight to recent months.
+def _monthly_totals(uid: int, ym: str) -> tuple[float, float]:
+    """Return (income, expenses) for a single month."""
+    year, month = map(int, ym.split("-"))
+    income = (
+        db.session.query(func.coalesce(func.sum(Expense.amount), 0))
+        .filter(
+            Expense.user_id == uid,
+            extract("year", Expense.spent_at) == year,
+            extract("month", Expense.spent_at) == month,
+            Expense.expense_type == "INCOME",
+        )
+        .scalar()
+    )
+    expenses = (
+        db.session.query(func.coalesce(func.sum(Expense.amount), 0))
+        .filter(
+            Expense.user_id == uid,
+            extract("year", Expense.spent_at) == year,
+            extract("month", Expense.spent_at) == month,
+            Expense.expense_type != "INCOME",
+        )
+        .scalar()
+    )
+    return float(income or 0), float(expenses or 0)
 
-    Most recent month gets weight = len(values), oldest gets weight = 1.
-    """
+
+def _category_spend(uid: int, ym: str) -> dict[str, float]:
+    year, month = map(int, ym.split("-"))
+    rows = (
+        db.session.query(
+            Expense.category_id, func.coalesce(func.sum(Expense.amount), 0)
+        )
+        .filter(
+            Expense.user_id == uid,
+            extract("year", Expense.spent_at) == year,
+            extract("month", Expense.spent_at) == month,
+            Expense.expense_type != "INCOME",
+        )
+        .group_by(Expense.category_id)
+        .all()
+    )
+    return {str(k or "uncat"): float(v) for k, v in rows}
+
+
+def _previous_month(ym: str) -> str:
+    year, month = map(int, ym.split("-"))
+    if month == 1:
+        return f"{year - 1:04d}-12"
+    return f"{year:04d}-{month - 1:02d}"
+
+
+def _build_analytics(uid: int, ym: str) -> dict:
+    _, current_expenses = _monthly_totals(uid, ym)
+    _, prev_expenses = _monthly_totals(uid, _previous_month(ym))
+    if prev_expenses > 0:
+        mom = round(((current_expenses - prev_expenses) / prev_expenses) * 100, 2)
+    else:
+        mom = 0.0
+    cats = _category_spend(uid, ym)
+    top = sorted(cats.items(), key=lambda x: x[1], reverse=True)[:3]
+    return {
+        "month_over_month_change_pct": mom,
+        "current_month_expenses": round(current_expenses, 2),
+        "previous_month_expenses": round(prev_expenses, 2),
+        "top_categories": [{"category_id": k, "amount": round(v, 2)} for k, v in top],
+    }
+
+
+def _weighted_average(values: list[float]) -> float:
+    """Compute weighted average giving more weight to recent months."""
     if not values:
         return 0.0
     n = len(values)
@@ -118,16 +186,6 @@ def _weighted_average(values: list[float]) -> float:
 
 
 def _compute_confidence(months_with_data: int) -> dict:
-    """Compute confidence score (0.0 - 1.0) and a human-readable label.
-
-    - 0 months => 0.0 (no data)
-    - 1 month  => 0.25 (low)
-    - 2 months => 0.45 (low-medium)
-    - 3 months => 0.65 (medium)
-    - 4 months => 0.78 (medium-high)
-    - 5 months => 0.88 (high)
-    - 6 months => 0.95 (very high)
-    """
     if months_with_data <= 0:
         return {"score": 0.0, "label": "no_data", "months_analyzed": 0}
 
@@ -151,10 +209,7 @@ def _compute_confidence(months_with_data: int) -> dict:
 
 
 def _compute_trend_pct(values: list[float]) -> float:
-    """Compute simple trend percentage (most recent vs older average).
-
-    Positive means spending is increasing.
-    """
+    """Positive means spending is increasing."""
     if len(values) < 2:
         return 0.0
     recent = values[-1]
@@ -165,7 +220,6 @@ def _compute_trend_pct(values: list[float]) -> float:
 
 
 def _build_category_suggestions(category_data: dict, months: list[str]) -> list[dict]:
-    """Build per-category budget suggestions with trends."""
     suggestions = []
     sorted_months = sorted(months)
 
@@ -203,29 +257,47 @@ def _build_category_suggestions(category_data: dict, months: list[str]) -> list[
     return suggestions
 
 
-def _heuristic_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
-    """Build a multi-month heuristic budget suggestion with confidence score."""
+def _heuristic_budget(
+    uid: int,
+    ym: str,
+    lookback: int = MAX_MONTHS,
+    persona: str | None = None,
+    warnings: list[str] | None = None,
+):
+    """Multi-month heuristic budget with confidence, analytics, and persona."""
     months = _month_range(ym, lookback)
     monthly_totals = _fetch_monthly_totals(uid, months)
     category_data = _fetch_category_monthly_totals(uid, months)
 
     months_with_data = len(monthly_totals)
     confidence = _compute_confidence(months_with_data)
+    income, expenses = _monthly_totals(uid, ym)
 
     if not monthly_totals:
-        return {
+        target = DEFAULT_BUDGET
+        payload = {
             "month": ym,
-            "suggested_total": DEFAULT_BUDGET,
+            "suggested_total": target,
             "breakdown": {
-                "needs": round(DEFAULT_BUDGET * 0.5, 2),
-                "wants": round(DEFAULT_BUDGET * 0.3, 2),
-                "savings": round(DEFAULT_BUDGET * 0.2, 2),
+                "needs": round(target * 0.5, 2),
+                "wants": round(target * 0.3, 2),
+                "savings": round(target * 0.2, 2),
             },
             "confidence": confidence,
             "category_suggestions": [],
             "data_range": {"months_requested": lookback, "months_with_data": 0},
+            "tips": [
+                "Cap discretionary spending in the highest category by 10%.",
+                "Set one automatic transfer to savings on payday.",
+            ],
+            "analytics": _build_analytics(uid, ym),
+            "persona": persona or DEFAULT_PERSONA,
             "method": "heuristic_default",
         }
+        if warnings:
+            payload["warnings"] = warnings
+        payload["net_flow"] = round(income - expenses, 2)
+        return payload
 
     sorted_months = sorted(monthly_totals.keys())
     ordered_totals = [monthly_totals[m] for m in sorted_months]
@@ -238,7 +310,7 @@ def _heuristic_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
 
     category_suggestions = _build_category_suggestions(category_data, months)
 
-    return {
+    payload = {
         "month": ym,
         "suggested_total": target,
         "breakdown": {
@@ -263,28 +335,18 @@ def _heuristic_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
             "newest_month": sorted_months[-1],
         },
         "monthly_totals": {m: monthly_totals.get(m, 0.0) for m in sorted(months)},
+        "tips": [
+            "Cap discretionary spending in the highest category by 10%.",
+            "Set one automatic transfer to savings on payday.",
+        ],
+        "analytics": _build_analytics(uid, ym),
+        "persona": persona or DEFAULT_PERSONA,
         "method": "heuristic",
     }
-
-
-def monthly_budget_suggestion(uid: int, ym: str, lookback: int = MAX_MONTHS):
-    """Generate dynamic budget suggestion using 3-6 months of historical data.
-
-    Priority: Gemini (free) -> OpenAI -> Heuristic fallback.
-    """
-    if _settings.gemini_api_key:
-        try:
-            return _gemini_budget(uid, ym, lookback)
-        except Exception as exc:
-            logger.warning("Gemini budget generation failed: %s", exc)
-
-    if _settings.openai_api_key and OpenAI:
-        try:
-            return _openai_budget(uid, ym, lookback)
-        except Exception as exc:
-            logger.warning("OpenAI budget generation failed: %s", exc)
-
-    return _heuristic_budget(uid, ym, lookback)
+    if warnings:
+        payload["warnings"] = warnings
+    payload["net_flow"] = round(income - expenses, 2)
+    return payload
 
 
 FINMIND_PERSONA = (
@@ -311,10 +373,30 @@ FINMIND_PERSONA = (
 )
 
 
-def _gemini_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
-    """Use Gemini (free tier) to generate budget suggestions."""
-    api_key = _settings.gemini_api_key
+def _parse_ai_json(text: str) -> dict:
+    """Extract JSON from AI response, stripping markdown fences if present."""
+    candidate = text.strip()
+    fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", candidate, flags=re.S)
+    if fenced:
+        candidate = fenced.group(1)
+    start = candidate.find("{")
+    end = candidate.rfind("}")
+    if start >= 0 and end > start:
+        candidate = candidate[start : end + 1]
+    return json.loads(candidate)
+
+
+def _gemini_budget(
+    uid: int,
+    ym: str,
+    lookback: int = MAX_MONTHS,
+    api_key: str | None = None,
+    persona: str | None = None,
+):
+    """Use Gemini to generate budget suggestions with multi-month data."""
+    key = api_key or _settings.gemini_api_key
     model = _settings.gemini_model or "gemini-1.5-flash"
+    persona_text = (persona or FINMIND_PERSONA).strip()
 
     months = _month_range(ym, lookback)
     monthly_totals = _fetch_monthly_totals(uid, months)
@@ -330,7 +412,7 @@ def _gemini_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
         }
 
     prompt = (
-        f"{FINMIND_PERSONA}\n\n"
+        f"{persona_text}\n\n"
         f"Here is my spending data. Please suggest a budget for {ym}.\n\n"
         f"Monthly totals: {json.dumps(monthly_totals)}\n"
         f"Category breakdown: {json.dumps(cat_summary)}\n\n"
@@ -352,7 +434,7 @@ def _gemini_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
     )
     resp = requests.post(
         url,
-        params={"key": api_key},
+        params={"key": key},
         json={
             "generationConfig": {"temperature": 0.2},
             "contents": [{"parts": [{"text": prompt}]}],
@@ -388,25 +470,21 @@ def _gemini_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
         obj["data_range"]["oldest_month"] = sorted_keys[0]
         obj["data_range"]["newest_month"] = sorted_keys[-1]
     obj["monthly_totals"] = {m: monthly_totals.get(m, 0.0) for m in sorted(months)}
+    obj["analytics"] = _build_analytics(uid, ym)
+    obj["persona"] = persona_text
     return obj
 
 
-def _parse_ai_json(text: str) -> dict:
-    """Extract JSON from AI response, stripping markdown fences if present."""
-    candidate = text.strip()
-    fenced = re.search(r"```(?:json)?\s*(\{.*\})\s*```", candidate, flags=re.S)
-    if fenced:
-        candidate = fenced.group(1)
-    start = candidate.find("{")
-    end = candidate.rfind("}")
-    if start >= 0 and end > start:
-        candidate = candidate[start : end + 1]
-    return json.loads(candidate)
-
-
-def _openai_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
+def _openai_budget(
+    uid: int,
+    ym: str,
+    lookback: int = MAX_MONTHS,
+    persona: str | None = None,
+):
     """Use OpenAI to generate budget suggestions from multi-month data."""
     client = OpenAI(api_key=_settings.openai_api_key)
+    persona_text = (persona or FINMIND_PERSONA).strip()
+
     months = _month_range(ym, lookback)
     monthly_totals = _fetch_monthly_totals(uid, months)
     category_data = _fetch_category_monthly_totals(uid, months)
@@ -440,7 +518,7 @@ def _openai_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
         temperature=0.2,
         response_format={"type": "json_object"},
         messages=[
-            {"role": "system", "content": FINMIND_PERSONA},
+            {"role": "system", "content": persona_text},
             {"role": "user", "content": user_prompt},
         ],
     )
@@ -459,4 +537,40 @@ def _openai_budget(uid: int, ym: str, lookback: int = MAX_MONTHS):
         obj["data_range"]["oldest_month"] = sorted_keys[0]
         obj["data_range"]["newest_month"] = sorted_keys[-1]
     obj["monthly_totals"] = {m: monthly_totals.get(m, 0.0) for m in sorted(months)}
+    obj["analytics"] = _build_analytics(uid, ym)
+    obj["persona"] = persona_text
     return obj
+
+
+def monthly_budget_suggestion(
+    uid: int,
+    ym: str,
+    lookback: int = MAX_MONTHS,
+    gemini_api_key: str | None = None,
+    gemini_model: str | None = None,
+    persona: str | None = None,
+):
+    """Generate dynamic budget suggestion.
+
+    Priority: Gemini (free / BYOK) -> OpenAI -> Heuristic fallback.
+    """
+    key = (gemini_api_key or "").strip() or (_settings.gemini_api_key or "")
+
+    if key:
+        try:
+            return _gemini_budget(uid, ym, lookback, api_key=key, persona=persona)
+        except Exception as exc:
+            logger.warning("Gemini budget generation failed: %s", exc)
+
+    if _settings.openai_api_key and OpenAI:
+        try:
+            return _openai_budget(uid, ym, lookback, persona=persona)
+        except Exception as exc:
+            logger.warning("OpenAI budget generation failed: %s", exc)
+
+    warnings = []
+    if key:
+        warnings.append("gemini_unavailable")
+    return _heuristic_budget(
+        uid, ym, lookback, persona=persona, warnings=warnings or None
+    )

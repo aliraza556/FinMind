@@ -451,8 +451,8 @@ class TestGeminiIntegration:
     def test_gemini_sends_persona_in_prompt(
         self, mock_settings, mock_post, client, auth_header
     ):
-        """The Gemini prompt should include the FinMind persona."""
-        from app.services.ai import FINMIND_PERSONA
+        """The Gemini prompt should include the financial analyst persona."""
+        from app.services.ai import FINANCIAL_ANALYST_PERSONA
 
         mock_settings.gemini_api_key = "fake-gemini-key"
         mock_settings.gemini_model = "gemini-1.5-flash"
@@ -469,9 +469,9 @@ class TestGeminiIntegration:
         call_args = mock_post.call_args
         body = call_args.kwargs.get("json") or call_args[1].get("json", {})
         prompt_text = body["contents"][0]["parts"][0]["text"]
-        assert "FinMind" in prompt_text
+        assert "financial analyst" in prompt_text.lower()
         assert "50/30/20" in prompt_text
-        assert FINMIND_PERSONA[:40] in prompt_text
+        assert FINANCIAL_ANALYST_PERSONA[:40] in prompt_text
 
     @patch("app.services.ai.requests.post")
     @patch("app.services.ai._settings")
@@ -631,7 +631,7 @@ class TestOpenAIIntegration:
         self, mock_settings, mock_openai_cls, client, auth_header
     ):
         """OpenAI call should send persona as system message."""
-        from app.services.ai import FINMIND_PERSONA
+        from app.services.ai import FINANCIAL_ANALYST_PERSONA
 
         mock_settings.gemini_api_key = None
         mock_settings.openai_api_key = "fake-openai-key"
@@ -652,7 +652,7 @@ class TestOpenAIIntegration:
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
         messages = call_kwargs["messages"]
         system_msg = next(m for m in messages if m["role"] == "system")
-        assert system_msg["content"] == FINMIND_PERSONA
+        assert system_msg["content"] == FINANCIAL_ANALYST_PERSONA
         assert call_kwargs.get("response_format") == {"type": "json_object"}
 
     @patch("app.services.ai.OpenAI")
@@ -800,26 +800,31 @@ class TestParseAIJson:
             _parse_ai_json("not json at all")
 
 
-class TestFinMindPersona:
+class TestFinancialAnalystPersona:
     """Verify persona content meets requirements."""
 
     def test_persona_includes_key_elements(self):
-        from app.services.ai import FINMIND_PERSONA
+        from app.services.ai import FINANCIAL_ANALYST_PERSONA
 
-        assert "FinMind" in FINMIND_PERSONA
-        assert "50/30/20" in FINMIND_PERSONA
-        assert "JSON" in FINMIND_PERSONA
-        assert "actionable" in FINMIND_PERSONA
-        assert "trend" in FINMIND_PERSONA
+        assert "financial analyst" in FINANCIAL_ANALYST_PERSONA.lower()
+        assert "50/30/20" in FINANCIAL_ANALYST_PERSONA
+        assert "JSON" in FINANCIAL_ANALYST_PERSONA
+        assert "trend" in FINANCIAL_ANALYST_PERSONA
+
+    def test_persona_handles_manual_input(self):
+        from app.services.ai import FINANCIAL_ANALYST_PERSONA
+
+        assert "manual" in FINANCIAL_ANALYST_PERSONA.lower()
+        assert "user" in FINANCIAL_ANALYST_PERSONA.lower()
 
     def test_persona_has_rules_section(self):
-        from app.services.ai import FINMIND_PERSONA
+        from app.services.ai import FINANCIAL_ANALYST_PERSONA
 
-        assert "Rules" in FINMIND_PERSONA
-        assert "saving opportunity" in FINMIND_PERSONA
+        assert "Rules" in FINANCIAL_ANALYST_PERSONA
+        assert "saving opportunity" in FINANCIAL_ANALYST_PERSONA
 
     def test_persona_has_personality_section(self):
-        from app.services.ai import FINMIND_PERSONA
+        from app.services.ai import FINANCIAL_ANALYST_PERSONA
 
-        assert "Personality" in FINMIND_PERSONA
-        assert "Encouraging" in FINMIND_PERSONA
+        assert "Personality" in FINANCIAL_ANALYST_PERSONA
+        assert "Encouraging" in FINANCIAL_ANALYST_PERSONA

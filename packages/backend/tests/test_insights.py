@@ -53,7 +53,7 @@ def test_budget_suggestion_prefers_user_gemini_key(client, auth_header, monkeypa
             "method": "gemini",
         }
 
-    monkeypatch.setattr("app.services.ai._gemini_budget", _fake_gemini)
+    monkeypatch.setattr("app.services.ai._gemini_budget_suggestion", _fake_gemini)
 
     r = client.get(
         "/insights/budget-suggestion",
@@ -75,7 +75,7 @@ def test_budget_suggestion_falls_back_when_gemini_fails(
     def _boom(*_args, **_kwargs):
         raise RuntimeError("gemini down")
 
-    monkeypatch.setattr("app.services.ai._gemini_budget", _boom)
+    monkeypatch.setattr("app.services.ai._gemini_budget_suggestion", _boom)
 
     r = client.get(
         "/insights/budget-suggestion",

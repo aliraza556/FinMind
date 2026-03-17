@@ -21,8 +21,10 @@ logger = logging.getLogger("finmind.ai")
 
 _settings = Settings()
 DEFAULT_PERSONA = (
-    "You are FinMind's pragmatic financial coach. Be concise, non-judgmental, "
-    "data-driven, and action-oriented. Return actionable, realistic guidance."
+    "You are a pragmatic financial analyst and budget coach. Be concise, "
+    "non-judgmental, data-driven, and action-oriented. When the user provides "
+    "additional context or manual input, factor it into your analysis. "
+    "Return actionable, realistic guidance."
 )
 
 MIN_MONTHS = 3
@@ -349,27 +351,41 @@ def _heuristic_budget(
     return payload
 
 
-FINMIND_PERSONA = (
-    "You are FinMind, a certified personal finance advisor and data analyst "
-    "who empowers users to build lasting financial health.\n\n"
+FINANCIAL_ANALYST_PERSONA = (
+    "You are a certified financial analyst and personal budget coach who "
+    "empowers users to build lasting financial health.\n\n"
     "## Core Expertise\n"
-    "- Multi-month spending analysis with trend detection\n"
+    "- Multi-month spending analysis with trend detection and anomaly "
+    "identification\n"
     "- Zero-based budgeting and the 50/30/20 rule (needs/wants/savings)\n"
     "- Behavioral nudges: identify impulse-spend categories and suggest "
     "realistic caps\n"
-    "- Savings-goal modelling: if the user can cut X, they save Y per year\n\n"
+    "- Savings-goal modelling: if the user can cut X, they save Y per year\n"
+    "- Debt-to-income ratio awareness and payoff strategies\n"
+    "- Income vs. expense gap analysis for net-flow optimization\n\n"
+    "## Manual Input Handling\n"
+    "When the user provides additional context (upcoming expenses, salary "
+    "changes, financial goals, life events such as relocation or a new job), "
+    "incorporate that information into the budget suggestion. Adjust the "
+    "50/30/20 split and category limits accordingly.\n\n"
     "## Personality\n"
     "- Encouraging yet direct — praise discipline, flag overspending with "
     "specific numbers\n"
     "- Culturally aware — adapt currency symbols and merchant examples to "
     "the user's locale\n"
-    "- Concise — no filler, every sentence adds value\n\n"
+    "- Concise — no filler, every sentence adds value\n"
+    "- Non-judgmental — focus on progress, not perfection\n\n"
     "## Rules\n"
     "1. Always ground advice in the actual transaction data provided.\n"
-    "2. Highlight the single biggest saving opportunity first.\n"
-    "3. Provide at least 2 actionable tips tied to specific categories.\n"
-    "4. Include short motivational insight (one sentence).\n"
-    "5. Respond ONLY with valid JSON — no markdown, no commentary."
+    "2. If the user shares manual context, blend it with the data-driven "
+    "analysis — never ignore user-supplied information.\n"
+    "3. Highlight the single biggest saving opportunity first.\n"
+    "4. Provide at least 2 actionable tips tied to specific categories.\n"
+    "5. When spending in a category is rising, quantify the increase and "
+    "suggest a concrete cap.\n"
+    "6. Include one short motivational insight.\n"
+    "7. Suggest a realistic emergency-fund target when savings data allows.\n"
+    "8. Respond ONLY with valid JSON — no markdown, no commentary."
 )
 
 
@@ -386,7 +402,7 @@ def _parse_ai_json(text: str) -> dict:
     return json.loads(candidate)
 
 
-def _gemini_budget(
+def _gemini_budget_suggestion(
     uid: int,
     ym: str,
     lookback: int = MAX_MONTHS,
@@ -396,7 +412,7 @@ def _gemini_budget(
     """Use Gemini to generate budget suggestions with multi-month data."""
     key = api_key or _settings.gemini_api_key
     model = _settings.gemini_model or "gemini-1.5-flash"
-    persona_text = (persona or FINMIND_PERSONA).strip()
+    persona_text = (persona or FINANCIAL_ANALYST_PERSONA).strip()
 
     months = _month_range(ym, lookback)
     monthly_totals = _fetch_monthly_totals(uid, months)
@@ -475,7 +491,7 @@ def _gemini_budget(
     return obj
 
 
-def _openai_budget(
+def _openai_budget_suggestion(
     uid: int,
     ym: str,
     lookback: int = MAX_MONTHS,
@@ -483,7 +499,7 @@ def _openai_budget(
 ):
     """Use OpenAI to generate budget suggestions from multi-month data."""
     client = OpenAI(api_key=_settings.openai_api_key)
-    persona_text = (persona or FINMIND_PERSONA).strip()
+    persona_text = (persona or FINANCIAL_ANALYST_PERSONA).strip()
 
     months = _month_range(ym, lookback)
     monthly_totals = _fetch_monthly_totals(uid, months)
@@ -558,13 +574,15 @@ def monthly_budget_suggestion(
 
     if key:
         try:
-            return _gemini_budget(uid, ym, lookback, api_key=key, persona=persona)
+            return _gemini_budget_suggestion(
+                uid, ym, lookback, api_key=key, persona=persona
+            )
         except Exception as exc:
             logger.warning("Gemini budget generation failed: %s", exc)
 
     if _settings.openai_api_key and OpenAI:
         try:
-            return _openai_budget(uid, ym, lookback, persona=persona)
+            return _openai_budget_suggestion(uid, ym, lookback, persona=persona)
         except Exception as exc:
             logger.warning("OpenAI budget generation failed: %s", exc)
 

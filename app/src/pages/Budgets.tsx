@@ -95,7 +95,7 @@ export function Budgets() {
     setLoading(true);
     setError(null);
     try {
-      const res = await getBudgetSuggestion(month, lookback);
+      const res = await getBudgetSuggestion({ month, months: lookback });
       setData(res);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load budget suggestions');

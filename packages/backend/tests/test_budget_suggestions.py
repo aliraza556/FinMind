@@ -10,7 +10,7 @@ Covers:
 - OpenAI integration (mocked)
 - AI fallback chain (Gemini -> OpenAI -> heuristic)
 - JSON parsing from AI responses
-- FinMind persona validation
+- Financial analyst persona validation
 """
 
 import json
